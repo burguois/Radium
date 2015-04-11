@@ -1,0 +1,303 @@
+-- Actor Effects by Smurth
+-- Original code by Rulix aka Bak:
+-- Modified by Ddraig for Radium. All functions now contained in actor_effects, no need for additional data script.
+
+local options = {
+	-- minimal distance from actor to draw helmet (increase it if helmet disapear when running / jumping)
+	cam_dist = 5.4,
+	radiation_ppe_threshold = 0.45,
+
+	outfits = {
+		-- texture to use when wearing the exo outfit
+		exo_outfit = "helm_exo",
+		-- texture to use when wearing the scientific outfit
+		scientific_outfit = "helm_scientific",
+	},
+	helmets = {
+		helm_respirator = "helm_respirator",
+		helm_respirator_joker = "helm_respirator",
+		helm_respirator_heavy = "helm_respirator",
+		helm_hardhat = "helm_hardhat",
+		helm_hardhat_snag = "helm_hardhat",
+		helm_protective = "helm_battle",
+		helm_tactic = "helm_tactic",
+		helm_battle = "helm_battle",
+	},
+	helmet_no_respi = {
+		-- helmets that doesn't provide respirator (no gasmask breath sounds)
+		helm_hardhat = true,
+	},
+	health = {
+		-- health level for heavy injuring sounds
+		level1 = 0.08,
+		-- health level for light injuring sounds
+		level2 = 0.18,
+		injury_snd = {
+			_1_0 = 2825,
+			_1_1 = 2612,
+			_1_2 = 2783,
+			_1_3 = 2821,
+			_1_4 = 3048,
+			_2_1 = 3331,
+			_2_2 = 3785,
+			_2_3 = 2989,
+			_2_4 = 4066,
+		},
+	},
+	speed = {
+		-- minimal speed for actor being treated as "running"
+		mini = 0.5,
+		-- speed time increase per update (when running)
+		inc = 0.11,
+		-- speed time decrease per update (when not running)
+		dec = 0.28,
+		-- minimal speed time for playing breath sounds (when no gasmask)
+		time_mini = 6,
+		-- play breath sounds (when no gasmask) when stamina is below this level
+		stamina = 0.4,
+		-- actor_speed_time += bleeding*k_bleed
+		k_bleed = 1.33,
+	},
+}
+
+local item_fx = {
+	helm_respirator = {
+		[30] = "level.add_pp_effector(\"helm_respirator.ppe\",3000,true)",
+	},
+	helm_exo = {
+		[30] = "level.add_pp_effector(\"helm_exo.ppe\",3000,true)",
+	},
+	helm_protective = {
+		[30] = "level.add_pp_effector(\"helm_battle.ppe\",3000,true)",
+	},
+	helm_hardhat = {
+		[30] = "level.add_pp_effector(\"helm_hardhat.ppe\",3000,true)",
+	},
+	helm_scientific = {
+		[30] = "level.add_pp_effector(\"helm_scientific.ppe\",3000,true)",
+	},
+	helm_battle = {
+		[30] = "level.add_pp_effector(\"helm_battle.ppe\",3000,true)",
+	},
+	helm_tactic = {
+		[30] = "level.add_pp_effector(\"helm_battle.ppe\",3000,true)",
+	},
+}
+
+local actor_speed_time = 0
+local helmet_cond = 1
+local helmet_name = ""
+local suitfirstrun = true
+local health_play = 0
+local gas_play = 0
+local run_play = 0
+local snd_tg = 0
+local actor_speed = {x=0, y=0, z=0}
+local current_helmet
+local current_outfit
+local hud = get_hud()
+local upd_time = 0
+local helmet_active = 0
+local item_in_use = {}
+local item_not_in_use = true
+
+
+function update()
+
+	if db.actor then
+
+		local tg = time_global()
+		if tg > upd_time then
+			upd_time = tg+180
+			hud_condition()
+		end
+		use_item_update()
+	end
+
+end
+
+
+
+function hud_condition()
+	local tg = time_global()
+	local radiation = db.actor.radiation
+	local cam_dist = db.actor:bone_position("bip01_head"):distance_to_sqr(device().cam_pos)
+	local pos = db.actor:position()
+	local speed = (pos.x - actor_speed.x)^2+(pos.y - actor_speed.y)^2+(pos.z - actor_speed.z)^2
+	actor_speed.x = pos.x
+	actor_speed.y = pos.y
+	actor_speed.z = pos.z
+
+	current_outfit = db.actor:item_in_slot(7)
+	current_helmet = db.actor:item_in_slot(12)
+
+	local cond = (current_helmet and current_helmet:condition()) or (current_outfit and current_outfit:condition())
+	current_helmet = axr_main.config:GetValue("features","dynamic_helmet_hud",1) and (db.actor:alive() and (current_helmet and options.helmets[current_helmet:section()]) or (current_outfit and options.outfits[current_outfit:section()]))
+
+	if radiation > 0 then
+		if radiation > options.radiation_ppe_threshold then
+			level.add_pp_effector("radiation.ppe", 2020, true)
+		else
+			level.remove_pp_effector(2020)
+		end
+		level.set_pp_effector_factor(2020, radiation)
+		if math.random()<radiation then
+			radiation = radiation>0.5 and math.random()<radiation/1.3 and "click3" or math.random(8)
+			local snd = sound_object("detectors\\geiger_"..radiation)
+			snd:play(db.actor,0,sound_object.s2d)
+		end
+	end
+
+	if speed > options.speed.mini then
+		actor_speed_time = actor_speed_time + options.speed.inc
+	elseif actor_speed_time > options.speed.dec then
+		actor_speed_time = actor_speed_time - options.speed.dec
+	end
+	actor_speed_time = math.min(32, actor_speed_time + db.actor.bleeding*options.speed.k_bleed)
+
+	if not (current_helmet and helmet_active) or cam_dist > options.cam_dist then
+		if helmet_name then
+			level.remove_pp_effector(3000)
+			hud:RemoveCustomStatic(helmet_name..helmet_cond)
+			if cam_dist <= options.cam_dist then
+				local snd
+				if options.helmet_no_respi[helmet_name] or tg < (snd_tg-400) then
+					snd = sound_object("actor\\gasmask_nobreath")
+				else
+					snd = sound_object("actor\\gasmask_off")
+				end
+				snd:play(db.actor,0,sound_object.s2d)
+				snd_tg = tg+snd:length()+120
+				gas_play = 0
+				helmet_cond = 1
+				helmet_name = nil
+				suitfirstrun = true
+			else
+				helmet_name = ""
+			end
+			return
+		end
+		if helmet_active or db.actor.health < options.health.level2 then hud_no_mask() end
+	else
+
+		if suitfirstrun then
+			local snd
+			if options.helmet_no_respi[current_helmet] or tg < snd_tg then
+				snd = sound_object("actor\\gasmask_nobreath")
+			else
+				snd = sound_object("actor\\gasmask_on")
+			end
+			snd:play(db.actor,0,sound_object.s2d)
+			snd_tg = tg+snd:length()+120
+			suitfirstrun = false
+			return
+		end
+
+		cond = math.floor(11*(1.09-cond))
+		if cond < 0 then
+			cond = math.abs(cond)
+		end
+		if cond < 1 then
+			cond = 1
+		end
+		if current_helmet~=helmet_name or cond~=helmet_cond then
+			if helmet_name then
+				hud:RemoveCustomStatic(helmet_name..helmet_cond)
+			end
+			if suitfirstrun == false and cond > helmet_cond and current_helmet==helmet_name and current_outfit then
+				local snd_obj = sound_object("material\\glass\\glass_fall03hl")
+				snd_obj:play(db.actor,0,sound_object.s2d)
+			elseif current_helmet~=helmet_name then
+				level.remove_pp_effector(3000)
+				use_item(current_helmet)
+			end
+			helmet_name = current_helmet
+			helmet_cond = cond
+			hud:AddCustomStatic(helmet_name..helmet_cond)
+		end
+		if options.helmet_no_respi[current_helmet] then
+			hud_no_mask()
+		elseif tg>snd_tg then
+			gas_play = gas_play+1
+			if gas_play > 8 then gas_play = 1 end
+			local snd = sound_object("actor\\gas_breath_"..tostring((db.actor.health > 0.2) and math.ceil((1.01-db.actor.power)*3+actor_speed_time/8) or 8).."_"..gas_play)
+			snd_tg = tg+snd:length()*1.25
+			snd:play(db.actor,0,sound_object.s2d)
+		end
+	end
+end
+
+function hud_no_mask()
+	local tg = time_global()
+	local health = db.actor.health
+
+	if tg < snd_tg or health < 0 then return end
+
+	if health > options.health.level2 then
+		if actor_speed_time > options.speed.time_mini  or db.actor.power < options.speed.stamina or run_play == 1 then
+			run_play = run_play+1
+			if run_play > 8 then run_play = 1 end
+			local snd = sound_object("actor\\run_"..math.ceil(3*actor_speed_time/44).."_"..run_play)
+			snd:play(db.actor,0,sound_object.s2d)
+			snd_tg = tg+snd:length()*1.15
+		else
+			run_play = 2
+		end
+		return
+	end
+
+	if health <= options.health.level1 then
+		health = 1
+		if math.random()<0.1 then
+			health_play = 0
+		else
+			health_play = health_play+1
+			if health_play > 4 then health_play = 1 end
+		end
+	else
+		health = 2
+		health_play = health_play+1
+		if health_play > 4 then health_play = 1 end
+	end
+	snd_tg = tg+options.health.injury_snd["_"..health.."_"..health_play]
+	xr_sound.set_sound_play(db.actor:id(), "actor_health"..health..health_play)
+end
+
+
+function use_item(name)
+
+	if item_fx[name] then
+		local t = tostring(time_global())
+		item_not_in_use = false
+		item_in_use[t] = {}
+		for k, v in pairs(item_fx[name]) do
+			item_in_use[t][k] = v
+		end
+	end
+end
+
+function use_item_update()
+
+	if item_not_in_use then
+		return
+	end
+
+	local in_use = 0
+	for k, t in pairs(item_in_use) do
+		in_use = in_use+1
+		local remove = true
+		local tg = time_global()-tonumber(k)
+		for milli, action in pairs(t) do
+			remove = false
+			if tg > milli then
+				assert(loadstring(action))()
+				item_in_use[k][milli] = nil
+			end
+		end
+		if remove then
+			in_use = in_use-1
+			item_in_use[k] = nil
+		end
+	end
+	item_not_in_use = (in_use==0)
+end

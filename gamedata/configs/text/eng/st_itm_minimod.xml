@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_itm_backpack_name">
+		<text>Backpack</text>
+			</string>
+	<string id="st_itm_backpack_desc">
+		<text>A backpack made of durable material able to withstand the most harsh weather conditions.</text>
+			</string>
+	<string id="st_itm_sleepbag_name">
+		<text>Sleeping bag</text>
+			</string>
+	<string id="st_itm_sleepbag_desc">
+		<text>A sleeping bag. The zone is not a safe place to sleep.</text>
+			</string>
+	<string id="st_sleep">
+		<text>Sleep</text>
+			</string>
+	<string id="st_itm_actor_backpack_name">
+		<text>Field kit</text>
+			</string>
+	<string id="st_itm_actor_backpack_desc">
+		<text>A durable backpack with various pouches and compartments equipped with quick release clips; giving the ability to drop the field kit at a moment's notice.</text>
+	</string>
+	<string id="st_itm_gunsmith_toolkit">
+		<text>Gunsmith toolkit</text>
+	</string>
+	<string id="st_itm_gunsmith_toolkit_descr">
+		<text>This kit contains oils, mechanical tools used for basic maintaining and some small weapon spare parts.\nAll metal items required to fix moderately damaged firearms to a functioning condition if you know your way around weapon mechanics.\nIt's a heavy kit but it can be very helpful when exploring deep into The Zone with basic equipment.</text>
+	</string>
+</string_table>

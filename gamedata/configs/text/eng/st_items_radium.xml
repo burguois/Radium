@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_actor_documents_name">
+		<text>ID card</text>
+	</string>
+	<string id="st_actor_documents_descr">
+		<text>An identification card confirming your identity and credentials as a SBU operative. Despite the relative simplicity of the documents, these have proven remarkably resistant to forgery attempts, although this may be thanks to the military's relatively low reputation in the Zone. Don't go waving these around unless you have a good reason.</text>
+	</string>
+	<string id="st_cpcb">
+		<text>Cocoa-Puffed Crunchy-Block</text>
+	</string>
+	<string id="st_cpcb_desc">
+		<text>These formed-marshmellow crispy-chunks made are sticky and full of sugar. The perfect get up and go breakfast in the Zone. YUM!</text>
+	</string>
+	<string id="st_hash">
+		<text>Hash Cookies</text>
+	</string>
+	<string id="st_hash_desc">
+		<text>Looking for that little extra boost and head-fuzzing-goodness? BOING! Eat a handfull of these and you'll find that night's aren't as dark and getting shot actually tickles a little.</text>
+	</string>
+	<string id="st_torte">
+		<text>Torte</text>
+	</string>
+	<string id="st_torte_desc">
+		<text>A slice of your favorite raisin, cinnamon and bittersweet chocolate flan torte; topped with cream and a cherry.</text>
+	</string>
+	<string id="st_goulash">
+		<text>Goulash special</text>
+	</string>
+	<string id="st_goulash_desc">
+		<text>Filling and comforting, this goulash is made with a thick meaty stew, cut potatoes, carrots and pasta. It is a mentally-grounding meal that keeps you sane in an insane place. May contain Morphine.</text>
+	</string>
+	<string id="st_mbk">
+		<text>Max Ball-Kicker</text>
+	</string>
+	<string id="st_mbk_desc">
+		<text>This energy-shot is essentially caffeine, B-12 and a steroid derived from Boar Tetstosterone. It will keep you alert, energized and dramatically decrease the lactic-acid buildup in your muscles, allowing you to haul more gear further and for longer.</text>
+	</string>
+	<string id="st_medo">
+		<text>Samogan</text>
+	</string>
+	<string id="st_medo_desc">
+		<text>This home-made swill (sticklers prefer 'moonshine') is freshly brewed for excursions into the zone. It contains some special-ingredients that have been handed down from stalker to stalker. These single-shot mason-jars make the perfect mouth-full of hopped-up goodness.</text>
+	</string>
+	<string id="st_jerky">
+		<text>Beef-Jerky</text>
+	</string>
+	<string id="st_jerky_desc">
+		<text>Strips of your Beef-jerky. Perfectly seasoned and moist with a salty fat that keeps you chewing for hours. This particular batch was harvested from the best meat in the zone, the side-effects of which are slightly better than your typical zone fare.</text>
+	</string>
+	<string id="st_chocolate">
+		<text>Dark Chocolate</text>
+	</string>
+	<string id="st_chocolate_descr">
+		<text>A rare and expensive treat in the Zone - dark chocolate purportedly has many health benefits, but many stalkers like it merely for the energy content and the luxury.</text>
+	</string>
+	<string id="st_beer">
+		<text>Beer</text>
+	</string>
+	<string id="st_beer_descr">
+		<text>Not as cold as you'd like, but beer is beer. A favourite beverage for those who can get it.</text>
+	</string>
+	<string id="st_mineral_water">
+		<text>Mineral Water</text>
+	</string>
+	<string id="st_mineral_water_descr">
+		<text>This is water sourced from local sources that have 'safe' levels of radioactive contamination. Due to the logistics of importing palatable water in great quantities into the Zone, large tanks are required to hold the water while it is distributed. Many of the tanks contain iron, so much 'Zone-produced' water has a slight red tint, but is otherwise safe to drink.</text>
+	</string>
+	<string id="st_drug_mezaton">
+		<text>Mezaton</text>
+	</string>
+	<string id="st_drug_mezaton_descr">
+		<text>Mezaton is a specialist drug that has gained popularity in the Zone due to its unique effects: It dilates the pupils and bolsters a stalker's natural ability to see in the dark. This has made it a cheaper alternative to noisy, cumbersome and prone to failure nightvision devices. Unfortunately this does not come without side effects, as it can make bright areas almost unbearable and substantially increases blood pressure, causing any wounds to be more severe than they normally would be.</text>
+	</string>
+</string_table>

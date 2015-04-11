@@ -1,0 +1,50 @@
+[settings]
+enable = true  									;Enables a memory system that keeps track of how long enemy has been visible or heard. When time is up, combat enemy is forgotten.
+time_safe = 120000								;Amount of time before safe zone flag wears off when an NPC leaves a no combat smart
+
+[combat_inertion]; Time in which a NPC engages combat long after losing sight or sound on an enemy
+stalker = 	{=has_actor_enemy} 150000, 60000
+bandit = 	{=has_actor_enemy} 150000, 60000
+dolg = 		{=has_actor_enemy} 150000, 60000
+freedom =	{=has_actor_enemy} 150000, 60000
+ecolog = 	{=has_actor_enemy} 150000, 60000
+killer = 	{=has_actor_enemy} 150000, 60000
+army =		{=has_actor_enemy} 150000, 60000
+monolith =	{=has_actor_enemy} 150000, 60000
+csky =		{=has_actor_enemy} 150000, 60000
+
+[combat_inertion_mult]
+novice = 0.9
+experienced = 1.0
+veteran = 1.2
+master = 1.3
+
+[forbidden_npcs] ;NPC or Squad section names who will use 50m distance check
+zat_b7_stalkers_victims_1
+zat_b7_stalkers_raiders
+zat_b103_lost_merc_squad1
+zat_b7_stalkers_base_squad
+zat_b5_bandit_squad
+zat_b5_dolg_assist_squad
+zat_b5_dolg_squad
+zat_b5_stalkers_squad
+zat_b38_stalker_cop
+zat_b18_noah
+zat_b18_dog_noah
+jup_a10_bandit_leader
+jup_b19_freedom_yar
+jup_a10_bandit_leader
+zat_b40_merc_squad_leader_1
+zat_b40_merc_squad_leader_2
+jup_b47_merc_guard_squad
+zat_b53_artefact_hunter_1
+zat_b53_artefact_hunter_2
+jup_a12_stalker_prisoner
+jup_a12_bandit_chief
+jup_a12_bandit_guard
+jup_a12_bandit_cashier
+jup_a12_merc_cover
+jup_b1_stalker_1
+jup_b1_stalker_2
+jup_b1_stalker_3
+jup_b1_stalker_4

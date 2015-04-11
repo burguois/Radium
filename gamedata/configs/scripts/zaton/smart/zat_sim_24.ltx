@@ -1,0 +1,21 @@
+[smart_terrain];zat_sim_24
+squad_id = 11
+max_population = 1
+respawn_params = respawn@zat_sim_24
+
+[respawn@zat_sim_24]
+spawn_monster
+spawn_gigant
+spawn_burer
+
+[spawn_burer]
+spawn_squads = simulation_burer
+spawn_num = {+zat_b101_heli_5_searched} 1, 0
+
+[spawn_gigant]
+spawn_squads = simulation_gigant
+spawn_num = {+zat_b101_heli_5_searched} 1, 0
+
+[spawn_monster]
+spawn_squads = simulation_fracture
+spawn_num = {+zat_b28_heli_3_searched +zat_b100_heli_2_searched} 1, 0

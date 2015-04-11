@@ -1,0 +1,69 @@
+-- Extensions to Game Options
+
+function main_menu_on_init(menu)
+	-- axr option default config
+	local need_save
+	if not (axr_main.config:KeyExist("debug","enable_hud")) then
+		axr_main.config:SetValue("debug","enable_hud",false)
+		need_save = true
+	end
+	if not (axr_main.config:KeyExist("features","enable_radio")) then
+		axr_main.config:SetValue("features","enable_radio",true)
+		need_save = true
+	end
+	if not (axr_main.config:KeyExist("features","dynamic_helmet_hud")) then
+		axr_main.config:SetValue("features","dynamic_helmet_hud",false)
+		need_save = true
+	end
+	if not (axr_main.config:KeyExist("features","safe_cover_notification")) then
+		axr_main.config:SetValue("features","safe_cover_notification",false)
+		need_save = true
+	end
+	if not (axr_main.config:KeyExist("features","enable_repair_feature")) then
+		axr_main.config:SetValue("features","enable_repair_feature",false)
+		need_save = true
+	end
+	if (need_save) then
+		axr_main.config:Save()
+	end
+end 
+
+function opt_menu_on_init(menu)
+	local xml = menu.xml
+	xml:InitStatic("tab_gameplay:cap_check_debug_hud", menu.dlg_gameplay)
+	menu.ck_debug_hud = xml:InitCheck("tab_gameplay:check_debug_hud",	menu.dlg_gameplay)
+	menu:Register(menu.ck_debug_hud,"ck_debug_hud")
+
+	xml:InitStatic("tab_gameplay:cap_check_radio_mod", menu.dlg_gameplay)
+	menu.ck_radio_mod = xml:InitCheck("tab_gameplay:check_radio_mod",	menu.dlg_gameplay)
+	menu:Register(menu.ck_radio_mod,"ck_radio_mod")
+	
+	xml:InitStatic("tab_gameplay:cap_check_dynamic_helmet_hud", menu.dlg_gameplay)
+	menu.ck_dynamic_helmet_hud = xml:InitCheck("tab_gameplay:check_dynamic_helmet_hud",	menu.dlg_gameplay)
+	menu:Register(menu.ck_dynamic_helmet_hud,"ck_dynamic_helmet_hud")
+
+	xml:InitStatic("tab_gameplay:cap_check_safe_cover_notification", menu.dlg_gameplay)
+	menu.ck_safe_cover_notification = xml:InitCheck("tab_gameplay:check_safe_cover_notification",	menu.dlg_gameplay)
+	menu:Register(menu.ck_safe_cover_notification,"ck_safe_cover_notification")
+
+	xml:InitStatic("tab_gameplay:cap_check_repair_feature", menu.dlg_gameplay)
+	menu.ck_repair_feature = xml:InitCheck("tab_gameplay:check_repair_feature",	menu.dlg_gameplay)
+	menu:Register(menu.ck_repair_feature,"ck_repair_feature")
+end 
+
+function opt_menu_on_accept(menu,optMgr,console)
+	axr_main.config:SetValue("debug","enable_hud",menu.ck_debug_hud:GetCheck())
+	axr_main.config:SetValue("features","enable_radio",menu.ck_radio_mod:GetCheck())
+	axr_main.config:SetValue("features","dynamic_helmet_hud",menu.ck_dynamic_helmet_hud:GetCheck())
+	axr_main.config:SetValue("features","safe_cover_notification",menu.ck_safe_cover_notification:GetCheck())
+	axr_main.config:SetValue("features","enable_repair_feature",menu.ck_repair_feature:GetCheck())
+	axr_main.config:Save()
+end
+
+function opt_menu_on_set_values(menu,optMgr)
+	menu.ck_debug_hud:SetCheck(axr_main.config:GetValue("debug","enable_hud",1,false))
+	menu.ck_radio_mod:SetCheck(axr_main.config:GetValue("features","enable_radio",1,false))
+	menu.ck_dynamic_helmet_hud:SetCheck(axr_main.config:GetValue("features","dynamic_helmet_hud",1,false))
+	menu.ck_safe_cover_notification:SetCheck(axr_main.config:GetValue("features","safe_cover_notification",1,false))
+	menu.ck_repair_feature:SetCheck(axr_main.config:GetValue("features","enable_repair_feature",1,false))
+end

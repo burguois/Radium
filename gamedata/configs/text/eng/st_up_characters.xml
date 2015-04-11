@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<string_table>
+<!--Copyright: 2010 2012 SWM Team-->
+<!--Author: Jurok-->
+<string id="st_neborsky_name">
+	<text>Major Neborsky</text>
+</string>
+ 
+<string id="st_batay_name">
+	<text>Staff Sergeant Batay</text>
+</string>
+ 
+</string_table>

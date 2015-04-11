@@ -1,0 +1,48 @@
+;Naming convention: <smart_name>_beh_<index> (ie. zat_b5_smart_terrain_beh_1, zat_b5_smart_terrain_beh_1_surge)
+
+; Directions [North = 0,0,-1] [East = -1,0,0] [South = 0,0,1] [West = 1,0,0]
+
+[beh@general]
+sound_idle = state
+behavior_state = beh_move
+target = waypoint
+walk_dist = 100
+jog_dist = 220
+wait_anim = guard
+walk_anim = patrol
+jog_anim = patrol
+run_anim = rush
+delay_anim = guard
+
+;--- zat_stalker_base_smart (Moved to zat_a2_logic as exclusive job; left here as example)
+;[zat_stalker_base_smart_beh_trade_1]:beh@general
+;pt1 = 20000,choose | pos:126.78354644775,-7.3205351829529,177.85723876953 look:123.11796569824,-7.3316869735718,177.53549194336
+;pt2 = 9000,zat_b14_give_artefact_act | pos:126.78354644775,-7.3205351829529,177.85723876953 look:123.11796569824,-7.3316869735718,177.53549194336 sig:trade
+;pt3 = 15000,guard | pos:126.78354644775,-7.3205351829529,177.85723876953 look:123.11796569824,-7.3316869735718,177.53549194336
+;on_signal = trade | %=trade_job_sell_items%
+;path_end = loop
+
+;[zat_stalker_base_smart_beh_trade_2]:beh@general
+;pt1 = 20000,choose | pos:111.79859161377,-3.9369685649872,188.25924682617 look:109.35130310059,-3.9362359046936,188.38806152344
+;pt2 = 9000,zat_b14_give_artefact_act | pos:111.79859161377,-3.9369685649872,188.25924682617 look:109.35130310059,-3.9362359046936,188.38806152344 sig:trade
+;pt3 = 15000,guard | pos:111.79859161377,-3.9369685649872,188.25924682617 look:109.35130310059,-3.9362359046936,188.38806152344
+;on_signal = trade | %=trade_job_sell_items%
+;path_end = loop
+
+
+;------------------------------- zat_b52
+[zat_b52_beh_1]:beh@general
+pt1 = 1291922,15000,binocular look:57,-6,7
+pt2 = 1310301,15000,hide look:205,5,-48
+pt3 = 1360456,120000,sit_ass look:228,7,-27
+path_end = loop
+
+[zat_b52_beh_2]:beh@general
+pt1 = 1358050,60000,animpoint_stay_wall animpoint:231.55517578125,6.7812156677246,-32.113494873047,1,0,0
+
+[zat_b52_beh_3]:beh@general
+pt1 = 1351748,0,sit_ass look:228,7,-27
+
+[zat_b52_beh_4]:beh@general
+pt1 = 1345528,240000,sleep
+pt2 = 1291942,60000,hide look:189,8.5,3

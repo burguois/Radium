@@ -1,0 +1,409 @@
+//////////////////////////////////////////////////////////////////
+// Dynamic Shaders 2.0 Alpha - Extreme Preset - By Meltac, Kingo64, Sky4ce, JJ Walker, Daemonjax, K.D., Ketxxx
+#ifndef SSM_Mount
+#define SSM_Mount
+//////////////////////////////////////////////////////////////////
+//Feature Enable/Disable: Comment a feature (Add the //) to disable, or uncomment (Remove the //) to enable.
+//////////////////////////////////////////////////////////////////
+// Comments with a '#' are Kingo64's notes
+//////////////////////////////////////////////////////////////////
+
+	// Set used DirectX version - use only when running Meltac's custom DirectX binaries!
+	//#define DX11	
+	
+	//#define SSH					                            // Enable/disable Meltac's Sun shafts 
+	
+	
+//////////////////////////////////////////////////////////////
+// Lighting - Shadows - Jittering Options
+//////////////////////////////////////////////////////////////
+	
+	//#define USE_SJITTER		// Uses shadow jittering, a modern method of smoothing out shadow edges. Applies to flashlight, and to world if SUN_FILTER is enabled.
+	#define USE_SJITTER_SUN		// Uses shadow jittering for shadows created by the sun/moon, a modern method of smoothing out shadow edges. Highly recommended.
+	#define USE_SJITTER_OTHER   // Enables shadow jittering (4 samples) for dynamic lights (e.g. flashlight/campfires).  Recommended.
+	//#define USE_SUNMASK			// Enables sun shadow masking # Occludes sun/moon behind clouds (pretty sure, anyways).	
+
+	// Shadow resolution:   NOTE:  You will STILL have to use the -smapXXXX switch on your shortcut to the game executable, where XXXX = CUSTOM_SHADOW_RESOLUTION!!!	
+	#define KERNEL float(1.6) 					// IMPORTANT For custom shadow resolution... Minimum recommended values: 1024 = .6, 2048 = 1.2, 4096 = 2.4, etc... Higher values produce softer shadows.
+	#define XKERNEL float(1.6) 					// Probably should be same as KERNEL!	
+	#define CUSTOM_SHADOW_RESOLUTION int(2048) // Use a custom shadow size. Default is 1024 (1024x1024). You'll notice a performance hit at 4096.
+	
+
+//////////////////////////////////////////////////////////////
+//Depth Of Field - By Meltac, Sky4ce
+//////////////////////////////////////////////////////////////
+
+	//Basic options:
+	//#define DEPTH_OF_FIELD 						// Enables Depth Of Field   # Blurs objects in the distance
+	#define DOF_QUALITY float(12)				//Amount of DOF samples. Maximum value is 12.
+
+	//Distance Options:
+	#define MINDIST float(15.0)	                // Minimum distance DOF starts. Default is 0.4.  // TWILIGHT KET USES 15
+	#define MAXDIST float(275)	                // Distance at which DOF stops rendering. Default is 375
+	#define MAXCOF	float(2.5)					// Blur amount - if using DDOF, this should not differ too much from DDOF_MAXCOF (I use same value). 2.5 is good.	
+
+	// Meltac: Near Field DOF, Zoom DOF, and Dynamic DOF
+
+	// Blur algorithm - Classic blur by Sky4ce (faster), or linear gaussian blur by Meltac (slower but smoother/better quality)
+	#define DOF_CLASSIC							// Use classic blur algorithm; if disabled, use gaussian blur algorithm (=default).
+	//#define DOF_CLASSIC_ZOOM					// Same as above but for zoom mode
+	#define DOF_CORRECTION float (2.0)			// Factor to equalize the amount of gaussian to classic blur. Default is 2.0.
+	//#define DOF_CRYSIS						// Enables modified/simplied blur effect ported from Crysis 2. CAUTION: Highly computationally expensive! Default is disabled.
+	
+	// Oversampling for better quality (not really improving much, but making game startup slower - use at your own risk)
+	#define DOF_OVERSAMPLING int(1)				// oversampling ratio. Default is 1.
+	
+	// Near Field DOF (see also Dynamic DOF, because the effects are interfering!)	
+	#define MAXNEAR float(0.7)					// Distance at which Near Field DOF starts. Default is 0.7. Larger values will blur your weapon more, and not only its near part.
+	#define MINNEAR float(0.0)					// Distance at which Near Field DOF stops. Default is 0.0
+	#define MAXCOF_NEAR float(7.0)				// Near Field blur amount. Interferes heavily with DDOF. Default is value 7.0 without, 15.0 with DDOF.
+	
+	// Zoom DOF
+	#define ZOOM_PERIBLUR						// Enable/disable peripheral blur in zoom/aim mode.
+	#define ZOOM_DDOF							// Enable/disable dynamic DOF in zoom/aim mode.
+	#define ZOOM_CENTER float2(0.500001f,0.497f) // Screen center measuring point for zoom DOF calculation. Modify this value if center is blurred while zooming.
+	#define ZOOM_FOV float (67.5)				// Field of View (FOV) angle at which zoom/aim mode is considered to be active. Do not change this value by default.
+	#define ZOOM_MINDIST float(15.0)	        // Minimum distance (radius) from screen center where DOF starts.
+	#define ZOOM_MAXDIST float(260.0)			// Distance radius from screen center at which DOF stops rendering (beyond that value - full blur). 
+	#define ZOOM_MAXCOF float(80.0)				// Blur amount at the screen border while zooming.
+	#define ZOOM_FACTOR float(10.0)				// The stepness of the blur amount raising from center to border. Good values are 10-12.
+	#define ZOOM_BARRIER float (20.0)			// (DEBUG) Distance from the screen center at which blurring starts, in relative pixels.
+	
+	// Dynamic DOF (caution: interferes with near field DOF)
+	#define DDOF								// Enable/disable Dynamic DOF (blurring coefficient is DDOF_MAXCOF)	
+	#define DDOF_CENTER float2(0.500001f,0.500001f) // Screen center measuring point for dynamic DOF calculation. Do not change this value by default.	
+	#define DDOF_MINDIST_ADD float(0.5)			// Added to focus distance, at this distance begins blurring
+	#define DDOF_MAXDIST_FACTOR float(4.0)		// Mindist * factor = maxdist
+	#define DDOF_MINDIST float(2.0)				// Minimum focus distance where DDOF starts rendering. Was 1.5 or 3.5
+	#define DDOF_MAXDIST float(7.0)				// Focus distance at which DDOF start to fade/decrease blur.
+	#define DDOF_MAXBARRIER float(15.0)			// Focus distance at which DDOF stops rendering. Beyond this focus distance, no DDOF, only regular (distance) DOF
+	#define DDOF_MINBARRIER float (4.0)			// Focus distance that makes the upper barrier for near field DDOF.
+	#define DDOF_MAXCOF	float(5.0)				// DDOF distance blur factor - good balanced is value 2.0 - 5.0 - see also MAXCOF
+	#define DDOF_MAXCOF_NEAR float (2.5)		// DDOF near field blur factor
+	#define DDOF_MAXALPHA float (0.1)			// Used to fix wrong DDOF distance when aiming to the sky. Change only if experiencing issues.
+	
+	// Debug only - do not use in production environment
+	//#define DDOF_DEBUG	
+	
+
+//////////////////////////////////////////////////////////////
+//Adaptive Nightvision Scopes - By Meltac
+//////////////////////////////////////////////////////////////
+	
+	// Basic options:
+	//#define NV									// Enables adaptive night vision
+	#define NV_RADIUS float(0.21)				// Radius of the night vision effect (1.0 = entire screen, use 0.5 for vanilla, 0.21 for gnomus scopes)
+	#define NV_SCREENRATIO float(0.625)			// Screen Ratio; use 0.75 for 4:3 (normalscreen) and 0.625 for 16:10 (widescreen) resolution
+	#define NV_FULLSCREEN						// Enables/disables night vision in fullscreen mode (e.g. when using binoculars)
+	
+	// Adaptive light amplification options:
+	#define NV_AMP float(4.0)					// Light amplification factor. Good values are 2.0 to 4.0
+	#define NV_RED float(0.1)					// Red color bias
+	#define NV_CONTRAST float(0.9)				// Contrast
+	#define NV_BRIGHTNESS float(0.10)			// Base brightness
+	#define NV_MINBRIGHT float(0.8)				// Minimal brightness correction for light adaption	
+	#define NV_MAXBRIGHT float(2.5)				// Maximal brightness correction for light adaption. Balanced: 2.5, High > 3.0
+	#define NV_SATURATION float(0.5)			// Level of color saturation before applying NV color (if other than (1,1,1)). 0 is fully desaturated, 1 is original color
+	#define NV_SAT_SUN_COEF (0.6)				// How much influence sun lighting has on the NV color saturation.
+	
+	// Additional scope zoom options:
+	#define NV_ZOOM float(1.5)					// Additional zoom/magnification when using scope. Lowers resolution. A good balanced value is 1.5. Comment this value out if you don't want additional scope zoom.
+	#define NV_BIAS float(0.25)					// Zoom bias applied towards periphery of zoomed scope. Set 0 for no bias.
+	
+
+	
+//////////////////////////////////////////////////////////////
+//Thermal/Infrared Vision - By Meltac
+//////////////////////////////////////////////////////////////
+	
+	//#define THM	
+	#define THM_MinVertG float(1.20)
+	#define THM_MaxVertG float(2.00)
+	#define THM_MaxAlpha float(0.1)
+	#define THM_Infra float(0.635)
+	#define THM_Infra2 float(0.665)
+	#define THM_REDCOF float(0.01)
+	#define THM_REDFAC float(0.30)
+	#define THM_LOWCOF float(2.0);
+	#define THM_POWER float(0.25)
+	#define THM_STRIPESRES float(70.0)
+	#define THM_STRIPESVEL float(12.0)
+	
+	
+	
+//////////////////////////////////////////////////////////////
+// Dynamic Wet Surfaces - By Meltac
+//////////////////////////////////////////////////////////////
+
+	#define WET								// Defines whether to use dynamic wet surfaces. Comment out to disable.	
+	//#define WET_ZOOM						// Defines whether to use dynamic wet surfaces also when zooming gun/binoc.
+	#define WET_FX .5f/1024.f				// Just the X-axis factor
+	#define WET_FY .5f/768.f				// Just the Y-axis factor
+	//#define WET_DEBUG						// Enables debug output. Leave disabled.
+	
+	// Basic Settings
+	#define WET_BASE float(0.5)				// Amount of full wet ground
+	#define WET_REF float(0.5)				// Amount of full wet reflections
+	#define WET_REF_BUILD float (0.5)		// Amount (fixed) of diffuse reflection in buildings that are defined as being reflective
+	#define WET_NORMAL float(0.001)			// Verticality / normality barrier for outdoor/terrain
+	#define WET_NORMALIN float(0.001) // 0.5		// Verticality / normality barrier for indoor/buildings
+	#define WET_NORMALFLOOD float(0.75)		// Verticality / normality threshold for "flooded" wet ground/floors
+	//#define WET_BUILDINGREF					// Enables/disables building's floors being always reflective. Default=disabled.
+	#define WET_MAXALPHA float(0.01)		// Alpha barrier (reduce if encountering rendering artifacts in the sky). Change only if experiencing shader ghosting.
+	#define WET_HEMILUM float (0.7)			// Hemisphere luminance level at which the color recognition changes (to prevent false positives) - do not change normally
+	#define WET_MAXCOF float(3.0) //1.0		// Maximum  amount of wet reflection on normal ground (asphalt etc.)	
+	#define WET_MAXCOF_METAL float (0.25)	// Maximum  amount of wet reflection on metallic structures
+	#define WET_MAXCOF_VEHIC float (0.5)	// Maximum  amount of wet reflection on vehicles
+	#define WET_MAXCOF_BUILD float (0.5)	// Maximum  amount of wet reflection on/in buildings and concretes	
+	#define WET_CONTRAST float (0.0) // 0.7 // Maximum constrast coefficient (larger values make wet surfaces look darker). Can be disabled by commenting out. CAUTION: Causes black artifacts - disabled for now.
+	#define WET_CONTRASTBLUE float (0.7)	// How much blue colors (e.g. asphalt) will be more affected by contrast change than other colors.
+	#define WET_MINLUM float(0.085)			// Minimum luminance (brightness) of ground to apply wet reflection effect	
+	#define WET_MAXDIST float(375.0)		// If not commented out, maximum distance for the wet refelction effect to be applied
+	#define WET_FADEMIN float(10.0)			// Distance at which the wet effect begins to fade.
+	#define WET_FADEMAX float(375.0)		// Distance at which the wet effect has completely faded out.
+	//#define WET_ADVANCEDBLUR float(1.0)	// If not commented out, blur amount to smoothen area between wet and dry (caution: very slow compilation!). Does not work correctly.
+	#define WET_BLUR float(3.0)				// If not commented out, blur amount applied to the entire wet/reflective area
+	#define WET_BLURQUALITY int(12)			// Quality of blur of the wet/reflective area
+	//#define WET_REFBLUR float(0.5)			// If not commented out, blur amount applied to the reflection. Decreases effect of WET_BLOOM and WET_RAINBLOOM.
+	#define WET_REFBLURQUALITY int(12)		// Quality of blur of the reflection	
+	#define WET_BLOOM_REF float(0.0)		// amount of reflected color bloom to add to the reflection color (makes it brighter as well)
+	#define WET_BLOOM_COL float(0.0)		// amount of ground color bloom to add to the reflection color (makes it brighter as well)
+	#define WET_WAVE float(0) // 0.01)			// inverse amplitude of sinus wave distorting the water reflection effect (lower means larger wave amplitude) - CAUTION: Breaks rain modulation!
+	#define WET_WAVENEG float(0) //0.00007)		// inverse amplitude of sinus wave distorting the water reflection effect - same as above but for negative ref values - CAUTION: Breaks rain modulation!	
+	#define WET_LUM float(17)				// How much luminosity affects wet reflections (color factor). Do not change normally. See also next line.
+	#define WET_LUMCOF float(3)				// How much luminosity affects wet reflections (power coefficient). See also previous line.		
+	
+	#define WET_BLOOM float(0.24)			// How much wetness affects bloom/blur of reflections. Higher values = more bloom. Effect depends on your r2_ls_bloom settings (in weather_control.script). Adjust WET_REF when changing this.
+	#define WET_RAINBLOOM float(0.05)		// How much rain density affects bloom/blur of reflections. Higher values = more bloom. Effect depends on your r2_ls_bloom settings.
+	
+	#define WET_YCORR float(1.3)			// View correction on Y-axis. Do not change normally.
+
+	// Object Reflection Settings
+	#define WET_OBJREFLECT					// Enables/disables dynamic object reflections (increases compile time and impacts FPS heavily!)
+	#define WET_OBJDEPTH float(0.1)			// Object depth difference when using dynamic object reflections	
+	#define WET_OBJSAMPLES int(40)			// Number of samples for dynamic object reflections
+	#define WET_OBJSTEP int(20)	 // 6			// Step size between samples
+	#define WET_OBJMAXDISTCOL float(50.0)	// Maximal distance of reflective pixel to apply dynamic object reflections
+	#define WET_OBJMAXDISTREF float(100.0)	// Maximal distance of reflected  pixel to apply dynamic object reflections	
+	#define WET_OBJMAXCOL float(0.56)		// Maximum amount of reflective color
+	#define WET_OBJMAXREF float(0.55)		// Maximum amount of reflected  color
+	#define WET_OBJFADE int(3)	// 6		// Amount of object fading. Normal is about 8.
+	#define WET_OBJDSTCORR float(1)			// Depth correction value for object reflections. Normally do not change.
+	#define WET_OBJWAVE float(0.00)			// inverse amplitude of sinus wave distorting the water reflection effect fore object reflections (see also WET_WAVE).
+	
+	// Rain distortion/modulation effect Settings
+	#define WET_DISAMP float(  0.10)// 1.00	// Maximum distortion amplitude
+	#define WET_DISFRQ float( 20.00)// 10.0	// Maximum distortion frequency
+	#define WET_DISPER float( 2.00)// 2.00	// Maximum distortion period
+	// #define WET_DISAMP float(  0.35)// 1.00	// Maximum distortion amplitude
+	// #define WET_DISFRQ float( 50.00)// 10.0	// Maximum distortion frequency
+	// #define WET_DISPER float(100.00)// 2.00	// Maximum distortion period
+	#define WET_RAINTHR float(0.2)			// Rain density threshold beyond which an alternative reflection is used.
+	
+	// Asphalt Color Settings
+	#define WET_BLOOM_MIX float(0.3)		// How much bloom impacts wetness detection. 0=none, 1=full - larger looks smoother but is more prone to false detection. Decrease upon wetness issues.
+	#define WET_COLDETECT					// Enable/disable asphalt detection by color. Disable only if not using vanilla asphalt textures and not seeing any wet reflections.
+	#define WET_SUNLUM float(0.1)			// Brightness/luminance of the sun below which color detection will not be used. Change only if not seeing any wet reflections.
+	#define WET_BLUEDIFF float(-0.1)		// Minimum color difference between blue and red/green terrain color. Might need changing if using custom textures and/or shaders and/or weathers.
+	#define WET_BLUECORR float(0.4)			// Corrected amount of blue color component. 1 = original blue, 0 = no blue. Change only if not using DS 2.0 asphalt textures.	
+	#define WET_SAT float(1)				// Wet color (de)saturation factor. 1=no change / keep original colors.
+	
+	//#define WET_COLFILTER float4(2,1.6,0,1)	// Enables/disables and sets color filter for wet surfaces/buildings. Experimental.
+	
+	// Debug Settings
+	#define WET_DEBUGVAL float(0.0)			// Increase in 0.1 steps for debugging purposes. Leave at 0.0 for normal use.	
+
+
+	
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//Anti-Aliasing (does not really work well, use at your own risk; at the moment, non-zoom mode only)
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// Basic options:
+	//#define AA								// Enables Anti-Aliasing
+	#define AA_KERNEL  float(0.7)				// PS: 0.5	
+
+	#define AA_BARRIER_X float(0.900000)
+	#define AA_BARRIER_Y float(0.500000)
+	#define AA_BARRIER_Z float(0.000000)
+	
+	#define AA_WEIGHTS_X float(0.250000)
+	#define AA_WEIGHTS_Y float(0.250000)
+	#define AA_WEIGHTS_Z float(0.000000)
+	
+
+//////////////////////////////////////////////////////////////
+//Parallax Occlusion Mapping
+//////////////////////////////////////////////////////////////
+
+	//Basic Options:
+	//#define PARALLAX_OCCLUSION		// Enables Parallax Occlusion Mapping  # Makes surfaces look bumpy and 3d at the cost of fps. Worth it
+	//#define MAX_SAMPLES int(40)		// Maximum amount of samples done to a texture.
+	//#define MIN_SAMPLES int(4)		// Minimum amount of samples done to a texture.
+	//#define PARALLAX_OFFSET float(0.015)	//Height of surface per sample.
+	//#define FINAL_INTERSECTION_LOOPS int(5)	//Amount of additional samples to increase accuracy.
+
+	//Performance Options:
+	//#define PARALLAX_FADE			//Parllax textures fade back to regular normals with distance; increases FPS and fixes anisotropic filtering. #Disabling this strangely gave me a much higher FPS.
+	#define START_FADE float(0.0003)	//Distance the fading starts
+	#define STOP_FADE float(0.0004)		//Distance the fading stops, and the texture returns to just using normals.
+	
+	//Other Options:
+	//#define USE_TEXTURE_PACK		//Uses height maps built into texture files, rather than self generating them. Requires special textures (81mb) # Put a // at the start of this line if you are running low on RAM or get 'Out of Memory' errors. Also it may cause other problems such as disabling the feature altogether
+  	//#define CORRECT_PERSPECTIVE		//WARNING!!! artifacts will appear if defined
+	#define CONTRAST_COEF_Q1 float(0.6)	//Amount of contrast in calculations.
+	#define CONTRAST_COEF_Q2 float(1)	//Amount of contrast in calculations.
+	#define BRIGHTNESS_COEF float(0.25)	//Amount of brightness in calculations.
+
+	
+	
+//////////////////////////////////////////////////////////////
+//Screen Space Ambient Occlusion (SSAO)
+//////////////////////////////////////////////////////////////
+
+	//#define SSAO				// Enables Screen Space Ambient Occlusion  # Looks good if you are stuck on Object Dynamic Lighting
+	//#define SSAO_QUALITY 3 		// Amount of SSAO samples. Use 2 for low quality and 3 for highst quality. 0 and 1 are only valid when using SSAO_COP. #The only noticable difference is the framerate :P
+	
+	// Type of SSAO - none of the following means, use implementation by daemonjax
+	//#define SSAO_LEGACY			// Enable classic SSAO implementation by Sky4ce instead of new one
+	//#define SSAO_NEW			// Enable new alternative SSAO implementation 
+	#define SSAO_COP			// Enable SSAO ported from Call of Pripyat (but without jittering). Probably the best SSAO algorithm so far.
+		
+	// Options only for SSAO_LEGACY:	
+	#define SSAO_TEX_CONT		//Increase texture contrast for diffuse lighting   # This line makes SSAO much darker. If it is too dark add a // to the start of the line or increase the value on the line below.
+	#define CONT_COEF float(0.3)	//Brightness increase amount
+	//Only for testing.
+	#define FADE_DIST float(4)
+	#define FADE_COEF float(0.2)
+	
+	// Options only for SSAO_COP:		
+	//#define SSAO_KERNEL_SIZE 70 // How big SSAO samples are. 70 is default. 150 for greater effect. 
+	#define SSAO_NOISE_TILE_FACTOR 2 // Not sure if this works or not, honestly. Seems to be used to determine how big the jitter sample is.
+	//#define USE_HBAO				// HBAO doesn't seem to work at all, therefor disabled by default.
+	
+	// Options only for implementation by daemonjax (=if no other SSAO implementation has been enabled above)		
+	//#define SSAO_PASSES int(5) 	//Amount of SSAO sample passes.  Each pass takes 6 samples. Use a minimum of two (since actual number of passes is one less than this number).  6
+	//#define SSAO_HIGH_QUALITY		//Increases the number of unique samples for each pass to 12.
+	#define SAO_DENSITY int(1024) //Higher values increase sao definitition while reducing its size. No performance cost.  As you increase the number of passes,  you'll want to increase density. 1024	
+	////For testing:
+	//#define SSAO_NOLOOP			// performs only 1 pass.  Same as SSAO_PASSES = 2, except it also removes the forloop in the code.  If defined, SSAO_PASSES has no effect.
+	
+
+//////////////////////////////////////////////////////////////
+// SSAO TWEAKS - by Daemonjax, Meltac, others
+//////////////////////////////////////////////////////////////
+
+	//// Shadow Jitter
+	#define HIGH_QUALITY_JITTER			// Uses a more expensive method for jittering shadows cast by the sun/moon -- but looks way better!  Set JITTER_SAMPLES below.  Be sure to set KERNEL value above to something sensible!
+	//#define HIGH_QUALITY_JITTER_LEGACY // Enable old jitter implementation 
+	#define JITTER_SAMPLES int(16)		// If HIGH_QUALITY_JITTER is enabled.  MUST BE AN EVEN NUMBER (8, 16, 24, ..., 64, etc.)!!! More samples = better quality of shadow edges/penumbras. 
+
+	//// Misc Lighting
+	#define TEX_CONT					// Increase texture contrast for diffuse lighting. Enables use of the lines below.
+	#define TEX_CONT_COEF float(0.9)	// Diffuse (ambient) lighting brightness multiplier.  Higher is brighter.  Default: 1.0
+	#define TEX_CONT_ADD float(0.0)   	// Diffuse lighting bightness increase amount. Higher is brighter. You're probably better off just changing the multiplier above.  Default: 0.0
+
+	//// Depth of Field
+	//#define PERFORMANCE_GAUSBLUR		// Uses a much faster algorithm for gaussian blur, at the cost of slightly reduced blur quality in DoF calculations. You probably won't notice the quality difference, but it'll definitely give you a few more fps.
+
+	//// Testing (You probably should not enable these)
+	//#define ADDITIONAL_SHADOW_PASS    // When jitter is enabled, it normally skips the shadow pass.  Enabling this forces the shadow pass.  Don't enable this... just enable HIGH_QUALITY_JITTER and increase JITTER_SAMPLES.
+	//#define USE_SHADOW_16   			// Uses 16 shadows samples (Othwerwise, it will use 4).  Jitter is way better.
+ 
+ 
+
+
+//////////////////////////////////////////////////////////////
+// Legagy Sun Shafts (by Sky4ce)
+//////////////////////////////////////////////////////////////
+
+	//Basic options:
+	//#define SUN_SHAFTS		// Enables Sun Shafts (god rays) # Only noticable on Full Dynamic Lighting, looks very nice but causes poor performance on some computers. Also makes the environment much brighter and natural.
+	#define RAY_SAMPLES int(16)	//Amount of sun ray samples. The higher this is, the better the quality and the lower your framerate. 12
+	#define SS_INTENSITY float(2.0)	// intensity of sun shafts. 1.1
+	#define SUN_SHAFTS_FIX	//Comment or Uncomment to enable or disable fix for far/near boundary.  Adjust SS_FAR_CONTRAST to hide the seam (it will never be perfect in all possible lighting). (By Daemonjax)
+	
+	#define SS_NEAR_CONTRAST float(6)	//Amount of contrast during sunray calculation (near). 6
+	#define SS_FAR_CONTRAST float(5.35)	//Amount of contrast during sunray calculation (far). Adjust to hide near/fear seam when sun shafts are enabled and SUN_SHAFTS_FIX is enabled.
+	
+	#define SS_CORRECTION float(-3.0) // Meltac: Sunshaft direction Y axis correction
+	
+	//Only for testing.
+	//#define SS_FARNEARLERP	// # Causes massive sun errors. Leave it disabled.
+
+	
+//////////////////////////////////////////////////////////////
+//Motion Blur
+//////////////////////////////////////////////////////////////
+
+	//Basic options:
+	//#ifndef USE_MBLUR
+	//#//define USE_MBLUR			// Enables Motion Blur # This forces Motion Blur on like -mblur. Adjust the blur amount with MBLUR_COEF later in this script.
+	//#endif
+	//#define IMPROVED_MBLUR		// Use distance-depending Motion Blur - Adjust START_DIST and FINAL_DIST to your needs. 
+	//#define SKY4CE_MBLUR 		// # Seems to break Motion Blur and Anti-Aliasing altogether
+	//#define MBLUR_SAMPLES int(20)	// Quality(Intesity)
+
+	//Details:
+	#define SCALE_X float(-0.03) // Velocity ratio X
+	#define SCALE_Y float(0.03) // Velocity ratio Y
+	#define START_DIST float(1.0) // Interpolation start distance
+	#define FINAL_DIST float(300.0) // Interpolation end distance
+	#define VEL_START float(0.001) //Velocity softening at start distance - default is 0.009, but I consider this value too high
+	#define VEL_FIN float(0.02) //Velocity softening at end distance
+	#define IMB_CLAMP float(0.01) //Motion Blur Ratio Clamp
+	
+	// Meltac: Use this instead of the "r2_mblur" setting in the console to define the motion blur amount
+	//#define MBLUR_COEF float2(1.0,0.0)
+
+	
+//////////////////////////////////////////////////////////////
+//Saturation and Contrast
+//////////////////////////////////////////////////////////////
+
+	//Basic options:
+	//#define SATURATION_FILTER	// Enables Saturation Filter, giving a grey like appearance to areas which are "unsafe".
+	//#define FORCED_SATURATION_FILTER	// Meltac: Forces the above saturation filter in cases in which it does not work.
+	//#define CONTRAST_FILTER		// Enables Contrast Filter, giving a grey like appearance to areas which are "unsafe".
+	
+	#define COLOR_SATURATION float(0.60)		//Level of Grey. 0 is all grey (Black and White), 1 is no Grey (Why have this enabled?)
+	#define COLOR_SAT_SUN_COEF float(0.60)    	//How much influence sun lighting has on the saturation.
+	#define CONTRAST_FILTER_COEF float(0.40)	//Level of full screen contrast.
+
+	
+//////////////////////////////////////////////////////////////
+//Float32 v2.0
+//////////////////////////////////////////////////////////////
+
+	//Basic options:	
+	//#define USE_F32		// Enables Float32 mod. Breaks saturation and contrast filters. # If you are using Panoramic Mod 2.1 FINAL from Argus make sure you have a // at the start of this line 
+	//#define USE_F32_FOG		// Enables Float32 style fog. Requires Float32 to be enabled.
+	#define CT_int  1.25f 		//Cook Tolerance of the sun.
+	#define CT_int_in   1.25f 	//Cook Tolerance of indoor lighting.
+	#define BLOOM_val 0.6h 		//Bloom brightness - Increases HDR brightness of the sky
+	#define HDR_int  10.h 		//HDR cutoff - Total HDR brightness
+
+	
+//RADEON COMPATIBILITY MODE - For those who can not use Fetch4 or have issues! Not needed on most modern GPUs.
+	//#define NO_F4
+
+//////////////////////////////
+//Forced Settings - Debug
+//////////////////////////////
+
+// #define USE_GAMMA_22
+// #define USE_SUNFILTER
+//#define USE_HWSMAP
+// #define USE_FETCH4
+//#define USE_HWSMAP_PCF	// nVidia GF3+, R600+
+//#define USE_BRANCHING
+// #define USE_VTF		// VertexTextureFetch
+// #define FP16_FILTER
+// #define FP16_BLEND
+// #define USE_PARALLAX
+// #define USE_TDETAIL
+// #define USE_LM_HEMI
+// #define USE_DISTORT
+// #define DBG_TMAPPING
+
+#endif

@@ -1,0 +1,22 @@
+[smart_terrain]
+squad_id = 40
+max_population = 1
+respawn_only_smart = true
+respawn_params = respawn@jup_sim_20
+
+[respawn@jup_sim_20]
+spawn_bloodsucker
+spawn_hostile_killer
+spawn_hostile_bandit
+
+[spawn_bloodsucker]
+spawn_squads = jup_simulation_bloodsucker, jup_simulation_bloodsucker_marsh, simulation_fracture
+spawn_num = 2
+
+[spawn_hostile_killer]
+spawn_squads = simulation_hostile_killer
+spawn_num = 2
+
+[spawn_hostile_bandit]
+spawn_squads = simulation_hostile_bandit
+spawn_num = {+zat_b7_actor_help_stalkers} 2, 0

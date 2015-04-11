@@ -1,0 +1,535 @@
+--[[
+	scheme_type: generic
+	author: Chugai
+	modified_by: Alundaio
+--]]
+
+----------------------------------------------------------------------------------------------------------------------
+--	—хема патруль дл€ reach_task_location.
+----------------------------------------------------------------------------------------------------------------------
+local alife = alife
+----------------------------------------------------------------------------------------------------------------------
+local patrols = {}
+
+local formations = {}
+formations["back"] = {
+										 { dir = vector ():set (0.7, 0, -.5), dist = 1.2 },
+										 { dir = vector ():set (-0.7, 0, -.5), dist = 1.2 },
+										 { dir = vector ():set (0.4, 0, -1), dist = 2.4 },
+										 { dir = vector ():set (-0.4, 0, -1), dist = 2.4 },
+										 { dir = vector ():set (0.7, 0, -1), dist = 3.6 },
+										 { dir = vector ():set (-0.7, 0, -1), dist = 3.6 },
+										 { dir = vector ():set (0.7, 0, -1), dist = 4.8 },
+										 { dir = vector ():set (-0.7, 0, -1), dist = 4.8 },
+										 { dir = vector ():set (0.7, 0, -1), dist = 6 },
+										 { dir = vector ():set (-0.7, 0, -1), dist = 6 },
+										 { dir = vector ():set (0.7, 0, -1), dist = 7.2 },
+										 { dir = vector ():set (-0.7, 0, -1), dist = 7.2 },
+										 { dir = vector ():set (0.7, 0, -1), dist = 8.4 },
+										 { dir = vector ():set (-0.7, 0, -1), dist = 8.4}
+										 }
+
+--[[
+formations["back"] = {
+                     { dir = vector ():set (-0.89442718, 0, -0.44721359), dist = 2.2360680 },
+                     { dir = vector ():set (0.89442718, 0, -0.44721359), dist = 2.2360680 },
+                     { dir = vector ():set (-0.37139067, 0, -0.92847669), dist = 5.3851647 },
+                     { dir = vector ():set (0.37139067, 0, -0.92847669), dist = 5.3851647 },
+                     { dir = vector ():set (-0.55470020, 0, -0.83205032), dist = 3.6055512 },
+                     { dir = vector ():set (0.55470020, 0, -0.83205032), dist = 3.6055512 },
+                     { dir = vector ():set (-0.48, 0, -0.55), dist = 4.4 },   --extra npc1
+                     { dir = vector ():set (0.48, 0, -0.55), dist = 4.4 },     --extra npc2
+                     { dir = vector ():set (-0.61, 0, -0.61), dist = 2.9 },   --extra npc3
+                     { dir = vector ():set (0.61, 0, -0.61), dist = 2.9 },   --extra npc4
+                     { dir = vector ():set (-0.77, 0, -0.83), dist = 3.1 },   --extra npc5
+                     { dir = vector ():set (0.77, 0, -0.83), dist = 3.1 },   --extra npc6
+                     { dir = vector ():set (-0.88, 0, -0.99), dist = 4.9 },   --extra npc7
+                     { dir = vector ():set (0.88, 0, -0.99), dist = 4.9 }   --extra npc8
+                     }
+--]]
+local accel_by_curtype = {
+						walk	= "run",
+						patrol	= "rush",
+						raid	= "assault",
+						sneak	= "sneak_run",
+						sneak_run = "assault"
+						}
+
+
+
+class "PatrolManager"
+function PatrolManager:__init(target_id)
+	self.target_name = target_id
+	self.npc_list = {}
+	self.current_state = "patrol"
+	self.commander_id = -1
+	self.formation = "back"
+	self.commander_lid = -1
+	self.commander_dir = vector ():set (0, 0, 1)
+	self.npc_count = 0
+end
+--' ƒобавление нового персонажа
+function PatrolManager:add_npc(npc)
+	--'validate npc
+	if npc == nil or npc:alive() == false or self.npc_list[npc:id()] ~= nil then
+		return
+	end
+
+	--' ѕроверка на то что в патруле не больше 7 сталкеров (иначе будет вылетать дальше)
+--	if self.npc_count == 7 then
+--		printf("[XR_REACH_TASK] attempt to add more then 7 npc. [%s]", npc:name())
+--		return
+--	end
+	--' if this npc first in command then set him as commander
+	self.npc_list[npc:id ()] = {soldier = npc:id(), dir = vector ():set (1, 0, 0), dist = 0}
+	self.npc_count = self.npc_count + 1
+	--' если мужик первый или считаетс€ лидером, то установим, как лидера
+	if npc:id() == get_object_squad(npc):commander_id() then
+		self.commander_id = npc:id ()
+		printf ("[XR_REACH_TASK] ASSIGNED NPC %s AS PATROL COMMANDER", npc:name ())
+	end
+	--printf ("[XR_REACH_TASK] NPC %s added to patrol manager %s", npc:name (), self.target_name)
+	self:reset_positions ()
+end
+--' ”даление персонажа
+function PatrolManager:remove_npc(npc)
+	if npc == nil then return end
+	if self.npc_list[npc:id()] == nil then
+		return
+	end
+	--printf ("[XR_REACH_TASK] NPC %s removed from patrol manager %s", npc:name(), self.target_name)
+	self.npc_list[npc:id ()] = nil
+	self.npc_count = self.npc_count - 1
+	if npc:id () == self.commander_id then
+		self.commander_id = -1
+		self:reset_positions ()
+	end
+end
+--' ѕересчет занимаемых позиций
+function PatrolManager:reset_positions()
+	local form_ = formations[self.formation]
+	local index = 1
+	for key, data in pairs(self.npc_list) do
+		--установим командора, если это еще не сделано
+		local se_npc = alife():object(data.soldier)
+		local squad = se_npc and get_object_squad(se_npc)
+		if squad == nil then
+			return
+		end
+		if self.commander_id == -1 then
+			 self.commander_id = squad:commander_id()
+		end
+		-- пересчитаем позиции
+		if self.commander_id ~= self.npc_list[key].soldier then
+			--printf("key[%s] index[%s]", tostring(key), tostring(index))
+			self.npc_list[key].dir = form_[index].dir
+			self.npc_list[key].dist = form_[index].dist
+			self.npc_list[key].vertex_id = -1
+			self.npc_list[key].accepted = true
+			index = index + 1
+		end
+	end
+end
+--' ”становление формации
+function PatrolManager:set_formation(formation)
+	if formation == nil then
+		abort ("Invalid formation (nil) for PatrolManager[%s]", self.target_name)
+	end
+	if formation ~= "around" and formation ~= "back" and formation ~= "line" then
+		abort ("Invalid formation (%s) for PatrolManager[%s]", formation, self.target_name)
+	end
+	self.formation = formation
+	self:reset_positions ()
+end
+--' ѕолучить командира патрул€
+function PatrolManager:get_commander(npc)
+	if npc == nil then
+		abort ("Invalid NPC on call PatrolManager:get_npc_command in PatrolManager[%s]", self.target_name)
+	end
+	--закешируем айдишник непис€
+	local npc_id = npc:id ()
+	--проверка непис€ на присутсвие в списке
+	if self.npc_list[npc:id ()] == nil then
+		abort ("NPC with name %s can't present in PatrolManager[%s]", npc:name (), self.target_name)
+	end
+	--проверка, чтобы командир не вздумал задавать глупых вопросов
+	if npc:id () == self.commander_id then
+		abort ("Patrol commander called function PatrolManager:get_npc_command in PatrolManager[%s]", self.target_name)
+	end
+	--получим данные командира
+	local commander = self.npc_list[self.commander_id].soldier
+	if commander == nil then
+		abort ("Patrol commander not present in PatrolManager[%s]", self.target_name)
+	end
+	return level.object_by_id(commander)
+end
+--' ѕолучить параметры действи€ NPC
+function PatrolManager:get_npc_command(npc)
+	if npc == nil then
+		printf("Invalid NPC on call PatrolManager:get_npc_command in PatrolManager[%s]", self.target_name)
+	end
+	--'закешируем айдишник непис€
+	local npc_id = npc:id ()
+	if self.npc_list[self.commander_id] == nil then
+		return npc:level_vertex_id(), npc:direction(), self.current_state
+	end
+	--'проверка непис€ на присутсвие в списке
+	if self.npc_list[npc:id ()] == nil then
+		 printf("NPC with name %s can't present in PatrolManager[%s]", npc:name (), self.target_name)
+	end
+	--'проверка, чтобы командир не вздумал задавать глупых вопросов
+	if npc:id() == self.commander_id then
+		 printf("Patrol commander called function PatrolManager:get_npc_command in PatrolManager[%s]", self.target_name)
+	end
+	--'получим данные командира
+	local commander = level.object_by_id(self.npc_list[self.commander_id].soldier)
+	if commander == nil then
+		printf("commander is nil!!!")
+	end
+	local dir = commander:direction()
+
+	local pos = vector():set(0, 0, 0)
+	local vertex_id = commander:location_on_path(5, pos)
+	--' ≈сли командир сам еще не дошел до пути (рассто€ние до вертекса больше чем 5 метров)
+	--' то за основную точку берем вертекс командира
+	if level.vertex_position(vertex_id):distance_to(level.object_by_id(self.npc_list[npc_id].soldier):position()) > 5 then
+		vertex_id = commander:level_vertex_id()
+	end
+
+	--'уберем вли€ние вертикальной составл€ющей
+	dir.y = 0
+	dir:normalize()
+	--'получим данные салаги
+	local dir_s = self.npc_list[npc_id].dir
+	local dist_s = self.npc_list[npc_id].dist
+
+	--'расчет позиции дл€ салаги
+	--'сначала получим направление
+	local angle = yaw_degree(dir_s, vector():set(0, 0, 1))
+	local vvv = vector_cross(dir_s, vector():set(0, 0, 1))
+	if vvv.y < 0 then
+		angle = -angle
+	end
+	dir_s = vector_rotate_y(dir, angle)
+
+	local d = 2
+	--'теперь аи ноду относительно командора ордена рыцарей храма
+	local vertex = level.vertex_in_direction(level.vertex_in_direction(vertex_id, dir_s, dist_s), dir, d)
+	self.npc_list[npc_id].vertex_id = vertex
+
+	--' проверим, а не имеет ли смысла неписю скорректировать свою позицию
+	--local distance = level.vertex_position(vertex):distance_to(self.npc_list[npc_id].soldier:position())
+	-- нужно считать отставание от командира, а не от расчетной точки.
+	local distance = commander:position():distance_to(level.object_by_id(self.npc_list[npc_id].soldier):position())
+	if distance > dist_s + 2 then
+		--' »грок сильно отстал. Ќеобходимо изменить тип перемещени€.
+		--' “ип перемещени€ задаем в зависимости от базового типа.
+		local new_state = accel_by_curtype[self.current_state]
+		if new_state ~= nil then
+			return vertex, dir, new_state
+		end
+	end
+	return vertex, dir, self.current_state
+end
+--' ”становить действие Ќѕ—
+function PatrolManager:set_command(npc, command, formation)
+	if npc == nil or npc:alive () == false then
+		abort ("NPC commander possible dead in PatrolManager[%s]", self.target_name)
+	end
+	if npc:id () ~= self.commander_id then
+		return --abort ("NPC %s is not commander in PatrolManager[%s]", npc:name (), self.target_name)
+	end
+	self.current_state = command
+	if self.formation ~= formation then
+		self.formation = formation
+		self:set_formation (formation)
+	end
+	self.commander_lid = npc:level_vertex_id ()
+	self.commander_dir = npc:direction ()
+	self:update ()
+end
+--' явл€етс€ ли указанный Ќѕ— командиром.
+function PatrolManager:is_commander(npc_id)
+	return npc_id == self.commander_id
+end
+--' Ќаходитс€ ли командир патрул€ в схеме XR_MEET
+function PatrolManager:is_commander_in_meet()
+	if self.commander_id == -1 then return false end
+	local npc = level.object_by_id(self.npc_list[self.commander_id].soldier)
+	if npc ~= nil and npc:alive () == true then
+		return xr_meet.is_meet (npc)
+	end
+	return false
+end
+--' јпдейт
+function PatrolManager:update ()
+	if tm_enabled == true then
+		self.tm:update ()
+	end
+end
+
+local function squad_current_action (object)
+	local squad = get_object_squad(object)
+	return squad and squad.current_action
+end
+
+-- включение патрул€
+local function add_to_patrol(npc, target_id)
+	local squad_id = get_object_squad(npc).id
+	if patrols[target_id.."_to_"..squad_id] == nil then
+		patrols[target_id.."_to_"..squad_id] = PatrolManager(target_id)
+	end
+	patrols[target_id.."_to_"..squad_id]:add_npc(npc)
+end
+
+class "evaluator_reached_task_location" ( property_evaluator )
+
+function evaluator_reached_task_location:__init( name, storage ) super ( nil, name )
+	self.st = storage
+end
+
+function evaluator_reached_task_location:evaluate()
+	local squad = get_object_squad(self.object)
+	if squad and squad.current_action and squad.current_action == 0 then
+		local squad_target = alife():object(squad.assigned_target_id)
+		if squad_target == nil then
+			return false
+		end
+		return not squad_target:am_i_reached(squad)
+	end
+	return false
+end
+
+--------------------------------------------------------------------------------------------------------------
+-- действие "довести сталкера к месту работы"
+
+class "action_reach_task_location" ( action_base )
+
+function action_reach_task_location:__init( name, storage )  super ( nil, name )
+	self.st = storage
+end
+function action_reach_task_location:initialize()
+	action_base.initialize( self )
+	self.target_id = get_object_squad(self.object).assigned_target_id
+	self.squad_id = get_object_squad(self.object).id
+	self.cur_state = "patrol"
+	self.formation = "back"
+	self.l_vid = -1
+	self.dist = 0
+	self.dir = vector():set(0, 0, 1)
+	self.on_point = false
+	self.was_reset = false
+	self.time_to_update = time_global () + 1500
+
+	self.object:set_desired_direction   	()
+	self.object:set_movement_selection_type	(game_object.alifeMovementTypeMask)
+	local best_weapon = self.object:best_weapon()
+	self.object:set_item					(object.idle, best_weapon)
+	self.object:set_body_state				(move.standing)
+	self.object:set_detail_path_type    	( move.line )
+	self.object:set_mental_state			(anim.free)
+	self.object:set_movement_type			(move.walk)
+	local squad_target 						= alife():object(self.target_id)
+	self.object:set_dest_game_vertex_id		(squad_target.m_game_vertex_id)
+	self.object:set_path_type           	( game_object.game_path )
+	self.object:inactualize_patrol_path		()
+	self.object:set_sight					(look.path_dir,nil,0)
+	add_to_patrol							(self.object, self.target_id)
+end
+
+
+function action_reach_task_location:execute()
+	local squad = get_object_squad(self.object)
+	if (not squad) or (squad:commander_id() == self.object:id() or not level.object_by_id(squad:commander_id()))then
+		self:commander_execute()
+	else
+		self:soldier_execute()
+	end
+	action_base.execute (self)
+end
+
+function action_reach_task_location:finalize()
+	self.object:set_movement_selection_type(game_object.alifeMovementTypeRandom)
+	action_base.finalize( self )
+end
+
+function action_reach_task_location:commander_execute()
+	local npc = self.object
+	local squad = get_object_squad(self.object)
+	local squad_target = simulation_objects.get_sim_obj_registry().objects[squad.assigned_target_id]
+	if squad_target == nil and squad:get_script_target() ~= nil then
+	 	squad_target = alife():object(squad.assigned_target_id)
+	end
+
+	if squad_target and not npc:is_talking() then
+		if (xr_conditions.surge_started() and character_community(npc) ~= "zombied") then
+			if not(db.storage[npc:id()].surge_timer) then
+				db.storage[npc:id()].surge_timer = time_global() + math.random(7000,15000)
+			end
+			if (db.storage[npc:id()].surge_timer and time_global() > db.storage[npc:id()].surge_timer) then
+				npc:set_mental_state(anim.panic)
+			else
+				npc:set_mental_state(anim.danger)
+			end
+			npc:set_movement_type(move.run)
+			return
+		else
+			db.storage[npc:id()].surge_timer = nil
+		end
+
+		local rush_to_target
+		if (squad_target:clsid() == clsid.online_offline_group_s) then
+			rush_to_target = true
+		elseif (squad_target:clsid() == clsid.smart_terrain and SIMBOARD.smarts[squad_target.id] and SIMBOARD.smarts[squad_target.id].population > 0) then
+			if (squad.player_id == "dolg" and squad_target.props and squad_target.props.freedom > 0)
+			or (squad.player_id == "freedom" and squad_target.props and squad_target.props.dolg > 0) then
+				rush_to_target = true
+			end
+		end
+
+		if (rush_to_target) then
+			npc:set_movement_type(move.run)
+			if (squad_target.position:distance_to_sqr(npc:position()) <= 10000) then
+				npc:set_mental_state(anim.danger)
+			else
+				npc:set_mental_state(anim.free)
+			end
+		else
+			npc:set_movement_type(move.walk)
+			npc:set_mental_state(anim.free)
+		end
+
+		local pos, lv_id, gv_id = squad_target:get_location()
+		if npc:game_vertex_id() ~= gv_id then
+			npc:set_path_type			(game_object.game_path)
+			npc:set_dest_game_vertex_id	(gv_id)
+			npc:set_sight				(look.path_dir,nil,0)
+		else
+			npc:set_path_type(game_object.level_path)
+			utils.send_to_nearest_accessible_vertex(npc,lv_id,"xr_reach_task:2")
+			npc:set_sight(look.path_dir,nil,0)
+			npc:set_desired_position(pos)
+		end
+	else
+		npc:set_movement_type(move.stand)
+	end
+
+	patrols[self.target_id.."_to_"..self.squad_id]:set_command(npc, self.cur_state, self.formation)
+end
+
+function action_reach_task_location:soldier_execute()
+	local tg = time_global()
+ 	if self.time_to_update - tg > 0 then
+		return
+	end
+	self.time_to_update = tg + math.random(800,1000)
+
+	local npc = self.object
+	local squad = get_object_squad(npc)
+
+	local commander = level.object_by_id(squad:commander_id())
+	local squad_target = simulation_objects.get_sim_obj_registry().objects[squad.assigned_target_id]
+	if squad_target == nil and squad:get_script_target() ~= nil then
+		squad_target = alife():object(squad.assigned_target_id)
+	end
+
+	self.l_vid, self.dir, self.cur_state = patrols[self.target_id.."_to_"..self.squad_id]:get_npc_command(npc)
+
+	local desired_direction = self.dir
+	--printf("desired_direction = %s", vec_to_str(desired_direction))
+	if desired_direction and not utils.vector_cmp(desired_direction, vector():set(0,0,0)) then
+		desired_direction:normalize()
+		npc:set_desired_direction(desired_direction)
+	end
+	npc:set_path_type(game_object.level_path)
+
+	self.l_vid = utils.send_to_nearest_accessible_vertex(npc, self.l_vid,"xr_reach_task")
+
+	if (squad_target == nil or xr_conditions.surge_started() or squad_target:clsid() == clsid.online_offline_group_s) then
+		npc:set_movement_type(commander:movement_type())
+		npc:set_mental_state(commander:mental_state())
+		return
+	elseif (squad_target:clsid() == clsid.smart_terrain) then
+		if (SIMBOARD.smarts[squad_target.id] and SIMBOARD.smarts[squad_target.id].population > 0) then
+			if (squad.player_id == "dolg" and squad_target.props and squad_target.props.freedom > 0)
+			or (squad.player_id == "freedom" and squad_target.props and squad_target.props.dolg > 0) then
+				npc:set_movement_type(commander:movement_type())
+				npc:set_mental_state(commander:mental_state())
+			end
+		end
+	end
+
+	if commander:movement_type() == move.stand then
+		npc:set_movement_type(move.stand)
+		return
+	end
+
+	if level.vertex_position(self.l_vid):distance_to(npc:position()) > 5 then
+		npc:set_movement_type(move.run)
+	else
+		npc:set_movement_type(move.walk)
+	end
+end
+
+function action_reach_task_location:death_callback(npc)
+	if self.target_id ~= nil then
+		patrols[self.target_id.."_to_"..self.squad_id]:remove_npc(npc)
+	end
+end
+function action_reach_task_location:net_destroy(npc)
+	if self.target_id ~= nil then
+		patrols[self.target_id.."_to_"..self.squad_id]:remove_npc(npc)
+	end
+end
+
+
+
+
+--------------------------------------------------------------------------------------------------------------
+
+function setup_generic_scheme(npc,ini,scheme,section,stype,temp)
+	local st = xr_logic.assign_storage_and_bind(npc,ini,"reach_task",section,temp)
+end
+
+function add_to_binder(npc,ini,scheme,section,st,temp)
+	local manager = npc:motivation_action_manager()
+	local alife_action = manager:action(stalker_ids.action_alife_planner)
+	local alife_action_planner = cast_planner(alife_action)
+	st.action =	alife_action_planner:action(stalker_ids.action_smart_terrain_task)
+	xr_logic.subscribe_action_for_events(npc,st,st.action)
+end
+
+function add_reach_task_action(npc)
+
+	local manager = npc:motivation_action_manager()
+
+	local alife_action = manager:action(stalker_ids.action_alife_planner)
+
+	local alife_action_planner = cast_planner(alife_action)
+
+	alife_action_planner:remove_evaluator(stalker_ids.property_smart_terrain_task)
+
+	alife_action_planner:add_evaluator(stalker_ids.property_smart_terrain_task, evaluator_reached_task_location( "reached_task_location", st))
+
+	alife_action_planner:remove_action(stalker_ids.action_smart_terrain_task)
+
+	local new_action = action_reach_task_location("reach_task_location", st)
+
+	local world_property = world_property
+
+	new_action:add_precondition	(world_property(stalker_ids.property_alife, 			 true))
+
+ 	new_action:add_precondition	(world_property(stalker_ids.property_smart_terrain_task, true))
+
+	new_action:add_effect		(world_property(stalker_ids.property_smart_terrain_task, false))
+
+	alife_action_planner:add_action(stalker_ids.action_smart_terrain_task, new_action)
+end
+
+
+
+
+
+
+
+

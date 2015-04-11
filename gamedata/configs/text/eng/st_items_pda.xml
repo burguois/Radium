@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="device_pda_sokolov">
+		<text>Lt. Sokolov's PDA</text>
+	</string>
+	<string id="device_pda_sokolov_descr">
+		<text>One message stands out among a handful of others. The message reads: "Damn it to hell! As if on cue, those cursed zombified swamped the Volkhov AA Complex... I was really hoping to get the door of the armory open before my exit. That extra firepower would have come in real useful on my way to the scientific expedition's mobile laboratory... Well, I guess that's the last I'll see of evacuation point B205. Good riddance."</text>
+	</string>
+	<string id="device_pda_monopre">
+		<text>Monolith preacher's PDA</text>
+	</string>
+	<string id="device_pda_monopre_descr">
+		<text>Last entry reads: "We thank you, oh Gracious and Merciful Monolith, for revealing the cunning plan's of your enemies to us. May your rays shine down on the souls of the warriors who spilled their blood and the blood of others in service to your will... We beseech you, oh Radiant and Noble Monolith, that you may show us the straight path, the path of death and martyrdom, and bring down wrath and vengeance on those who dare spurn your holy wisdom."</text>
+	</string>
+	<string id="device_pda_strelok">
+		<text>Strelok's PDA</text>
+	</string>
+	<string id="device_pda_strelok_descr">
+		<text>This PDA contains several custom applications, such as an extensive Zone encyclopaedia. It also contains hundreds of notes and diary entries. The most striking entry appears to be the first. It simply says: "KILL THE STRELOK".</text>
+	</string>
+	<string id="device_pda_striderb">
+		<text>Strider's PDA</text>
+	</string>
+	<string id="device_pda_striderb_descr">
+		<text>Last entry reads: "Before I entered the Zone, I used to hear about it on the news every day. Mindless terrors, who even in the heat of battle, postrate towards a monolith... who are intolerent of anyone but their own... who fight to the death... who not only fight for death, but love death more than we love life... How could I let this happen to me?"</text>
+	</string>
+	<string id="device_pda_mitay">
+		<text>Mitay's PDA</text>
+	</string>
+	<string id="device_pda_mitay_descr">
+		<text>Last entry reads: "Hid my PDA somewhere they'd never check. Smells nasty as hell now. Nevermind... I overheard some of the bandits blabbering about a stash they hid inside a toppled desk. So once Grizzly and Torba figure a way to get me out of this mess, it looks like we'll be heading over to the Jupiter Plant."</text>
+	</string>
+	<string id="device_pda_shishak">
+		<text>Shishak's PDA</text>
+	</string>
+	<string id="device_pda_shishak_descr">
+		<text>One message stands out among a handful of others. The message reads: "Dwarf seems to be living up to his name. What a slimey little worm. I think it's time I arranged a meet with Jack over at the Checkpoint."</text>
+	</string>
+	<string id="device_pda_dwarf">
+		<text>Dwarf's PDA</text>
+	</string>
+	<string id="device_pda_dwarf_descr">
+		<text>Last entry reads: "How can we respect someone like Shishak? He's such a fool! He has no idea that me and the boys are skimming the profits... Now, Jack, that's a real man. Have you seen the size of that fancy shotgun he carries? When we're done fleecing this idiot, I'm joining Jack's crew for sure."</text>
+	</string>
+	<string id="device_pda_jack">
+		<text>Jack's PDA</text>
+	</string>
+	<string id="device_pda_jack_descr">
+		<text>One message stands out among a handful of others. The message reads: "Received a generous tribute from Shishak over at the Container Warehouse. If Dwarf shows his face around here, my boys have been instructed to bring him to me unharmed. I want to personally violate this bitch."</text>
+	</string>
+	<string id="device_pda_strider">
+		<text>Strider's PDA</text>
+	</string>
+	<string id="device_pda_strider_descr">
+		<text>Last entry reads: "Before I entered the Zone, I used to hear about it on the news every day. Mindless terrors, who even in the heat of battle, postrate towards a monolith... who are intolerent of anyone but their own... who fight to the death... who not only fight for death, but love death more than we love life... How could I let this happen to me?"</text>
+	</string>
+	<string id="device_pda_senka">
+		<text>Senka's PDA</text>
+	</string>
+	<string id="device_pda_senka_descr">
+		<text>Last recorded entry: "Well... uhh uh... you know..."</text>
+	</string>
+	<string id="device_pda_founder">
+		<text>Lt. Zakharchuk's PDA</text>
+	</string>
+	<string id="device_pda_founder_descr">
+		<text>Last recorded entry: "We've been stuck in here for days and our supplies are running dangerously low. There's got to be a way out of here. It's hard to describe what 'here' is. It's almost as if we've died and are now stuck in some form of purgatory. Hrm. Kosmach is looking at me funny... I don't like it."</text>
+	</string>
+	<string id="device_pda_yar">
+		<text>Uncle Yar's PDA</text>
+	</string>
+	<string id="device_pda_yar_descr">
+		<text>Last entry reads: "This kid looks determined. I like that. He's helping an old man out with no question's asked. If I live through this I will pay him the same courtesy. I imagine he goes through gear like a pseudodog through a stalker, so how would cheap medicals and equipment repairs sound? Either way, I need a break after this one. My body is not what it used to be."</text>
+	</string>
+	<string id="device_pda_topol">
+		<text>Topol's PDA</text>
+	</string>
+	<string id="device_pda_topol_descr">
+		<text>Last entry reads: "I've been receiving some sketchy reports of an unmanned aerial vehicle north of the Ash Heap Anomaly... Must inform Mace, Snake and Spirit about this once I get something more concrete."</text>
+	</string>
+	<string id="device_pda_topolpro">
+		<text>Topol's PDA</text>
+	</string>
+	<string id="device_pda_topolpro_descr">
+		<text>One message stands out among a handful of others. The message reads: "I've been receiving some sketchy reports of an unmanned aerial vehicle north of the Ash Heap Anomaly... Must inform Mace, Snake and Spirit about this once I get something more concrete." /nLast entry reads: "Wow! Finally, we're REAL scientists! I'm now head of the "Iskra Scientific Research and Investigation Team"! Must remember to thank Alexander properly. We never would have made it this far without his help."</text>
+	</string>
+	<string id="device_pda_topman">
+		<text>Spirit's PDA</text>
+	</string>
+	<string id="device_pda_topman_descr">
+		<text>Last entry reads: "A friend of mine said he knows a guy who knows another guy whose buddy found a tunnel in the small building between the Ventilation Complex and the train rails... Apparently it's full of mutants and other weird shit down there. I won't be going there any time soon."</text>
+	</string>
+	<string id="device_pda_topmanpro">
+		<text>Spirit's PDA</text>
+	</string>
+	<string id="device_pda_topmanpro_descr">
+		<text>One message stands out among a handful of others. The message reads: "A friend of mine said he knows a guy who knows another guy whose buddy found a tunnel in the small building between the Ventilation Complex and the train rails... Apparently it's full of mutants and other weird shit down there. I won't be going there any time soon." /nLast entry reads: "Man, I hope this science gig doesn't go to Topol's head. When we met him this morning he said, 'we must do tea sometime.' Tea! Seriously!? I don't even know if there is any tea in the Zone..."</text>
+	</string>
+	<string id="device_pda_merca">
+		<text>Black's PDA</text>
+	</string>
+	<string id="device_pda_merca_descr">
+		<text>A damaged PDA with corrupted data. The last message from someone named Qzxpzo reads: "Vmgvi gvcg sviv.Nb nzm zg gsv ivhvzixs rmhgrgfgv droo gszg blf ovzw gsv vckvwrgrlm. Sv droo szev gl sriv blfi ylbh gl tfziw gsv yfmpvi. Gszg droo nzpv gsrmth uli blf. Ivnvnyvi, gsv xorvmg wlvhm'g dzmg ZMB zylfg gsv lkvizgrlm lu C-wvhrtmzgvw gl ivzxs gsv hxrvmgrhgh. Ru rg wlvh, dv droo yv zyov gl ovzev gsv Almv. Wlm'g ovg nv wldm, Yozxp."</text>
+	</string>
+	<string id="device_pda_mitayeco">
+		<text>Mitay's PDA</text>
+	</string>
+	<string id="device_pda_mitayeco_descr">
+		<text>One message stands out among a handful of others. The message reads: "Hid my PDA somewhere they'd never check. Smells nasty as hell now. Nevermind... I overheard some of the bandits blabbering about a stash they hid inside a toppled desk. So once Grizzly and Torba figure a way to get me out of this mess, it looks like we'll be heading over to the Jupiter Plant." /nLast entry reads: "Working for crazy scientists? Well, I guess that could be considered a step up from being a hostage to bandits."</text>
+	</string>
+	<string id="device_pda_krug">
+		<text>Stalker's PDA</text>
+	</string>
+	<string id="device_pda_krug_descr">
+		<text>This PDA belonged to one of the bloodsucker victims at the Krug Antenna Complex. Last entry reads: "Hehe. What a great find! No one will think to look down here, let alone under the propped-up grate. It's the perfect hiding place to stash my goodies. Hold on. I think I hear something..."</text>
+	</string>
+	<string id="device_pda_grousea">
+		<text>Grouse's PDA</text>
+	</string>
+	<string id="device_pda_grousea_descr">
+		<text>Last entry reads: "Tremor confirmed the cause of death to be from a bloodsucker attack. I can't really argue against that conclusion as it seems pretty self-evident. Odd man... broke out in a cold-sweat when I was talking to him. Probably nothing to worry about, but it still makes me feel uneasy. I'm going to keep a close eye on him from now on."</text>
+	</string>
+	<string id="device_pda_grouseb">
+		<text>Grouse's PDA</text>
+	</string>
+	<string id="device_pda_grouseb_descr">
+		<text>An empty PDA. Its data has only recently been deleted.</text>
+	</string>
+	<string id="device_pda_gonta">
+		<text>Gonta's PDA</text>
+	</string>
+	<string id="device_pda_gonta_descr">
+		<text>One message stands out among a handful of others. The message reads: "Had a run-in with Snag the other day. Claimed I stole my shotgun from him. He seems to have a thing for custom weapons. Thieving prick doesn't realize how close he came to having a shotgun shoved up his ass."</text>
+	</string>
+	<string id="device_pda_garmata">
+		<text>Garmata's PDA</text>
+	</string>
+	<string id="device_pda_garmata_descr">
+		<text>Last entry reads: "Gonta says if a pack of dogs attack, try to pick them off from a high spot. But he doesn't take into account the fact that if they're attacking you, how in the hell are you supposed to get to a high spot? I've always found my hunting knife to be very effective in these situations. As long as I'm aware of my surroundings and keep moving, I can pick them off with my knife as they lunge in for the kill."</text>
+	</string>
+	<string id="device_pda_dassist">
+		<text>Mercenary's PDA</text>
+	</string>
+	<string id="device_pda_dassist_descr">
+		<text>A battered PDA belonging to one of Morgan's hired mercenaries. Data corrupted.</text>
+	</string>
+	<string id="device_pda_hunter">
+		<text>Danila's PDA</text>
+	</string>
+	<string id="device_pda_hunter_descr">
+		<text>One message stands out among a handful of others. The message reads: "It wasn't my fault, I thought he was a drunk bandit. How was I to know he was only a play-acting drunk bastard? I mean, who on earth thinks it's a good idea to get pissed and go out hunting artifacts in the middle of the night? He's still there at the far south of the Oakpine Anomaly. I can't bear to move the poor fool. Not much of him left now, just a few bones. But I keep going back to that place. At least if anyone finds him, they'll just assume he was taken by the anomaly.</text>
+	</string>
+	<string id="device_pda_hatchet">
+		<text>Hatchet's PDA</text>
+	</string>
+	<string id="device_pda_hatchet_descr">
+		<text>Last entry reads: "Screw the mission. I haven't eaten in days... days! My men are starving and morale is low. I know mercs who would have no problem eating their own men to survive. Only their weakest men, though. After all, that's how natural selection works.  But who am I kidding? I'm not that sort of merc. I couldn't even bring myself to take down that rookie stalker who ran away screaming like a little girl. Someone else is bound to come along soon. Maybe they'll be willing to help?"</text>
+	</string>
+	<string id="device_pda_lost">
+		<text>Kirzach's PDA</text>
+	</string>
+	<string id="device_pda_lost_descr">
+		<text>This PDA belonged to Hatchet's second in command. The last entry reads: "I'm saved! Yesterday I found a rotten loaf of bread under some dirt. Well, at least I think it was bread. I feel sick from the radiation now but it was worth every bite. I only hope the other men don't notice..."</text>
+	</string>
+<string id="device_pda_mayron">
+		<text>Mirone's PDA</text>
+	</string>
+	<string id="device_pda_mayron_descr">
+		<text>PDA entires constantly refer to a Prof. H as "the dealer" and its owner as "the flying guinea pig". Last few entries are written in gibberish.</text>
+	</string>
+	<string id="device_pda_awl">
+		<text>Awl's PDA</text>
+	</string>
+	<string id="device_pda_awl_descr">
+		<text>One message stands out among a handful of others. The message reads: "Next time I'll think twice before venturing out without Petruha. Those mercs at the Substation Workshop could have killed me! I would have given them some food, but I'm skinny enough as it is. I can't remember the last time I ate a decent meal. At least we got that new suit now. I have a feeling our luck's about to change!"</text>
+	</string>
+	<string id="device_pda_petruha">
+		<text>Petruha's PDA</text>
+	</string>
+	<string id="device_pda_petruha_descr">
+		<text>Last entry reads: "Oh man, I left the Cordan for this shit? I can barely scrape by on my own and now I have Awl to think of. This suit he talked me into buying ain't worth the material it's made from. I'd be better off hunting artifacts naked... Damn rookie's gonna be the death of me."</text>
+	</string>
+	<string id="st_idwallet">
+		<text>ID wallet</text>
+	</string>
+	<string id="st_idwallet_descr">
+		<text>Wallet containing operative's identification card.</text>
+	</string>
+</string_table>

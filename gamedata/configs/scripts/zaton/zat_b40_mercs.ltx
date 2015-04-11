@@ -1,0 +1,188 @@
+; general
+
+[walker@zat_b40_mercs_gen]
+radius = 50
+def_state_moving = assault
+def_state_standing = guard
+on_actor_dist_le1 = 100 | %+zat_b40_actor_find_mer_camp%
+gather_items_enabled = false
+
+[walker@zat_b40_surge_gen]:walker@zat_b40_mercs_gen
+def_state_standing = sit_knee
+out_restr = zat_surge_hide_b40
+gather_items_enabled = false
+
+[logic@zat_b40_mercs_gen]
+suitable = {=npc_community(killer)} true
+prior = 200
+
+; logic
+[logic@zat_b40_guard_leader_01]:logic@zat_b40_mercs_gen
+suitable = {=check_npc_name(zat_b40_merc_squad_leader_1)} true
+prior = 300
+active = walker@zat_b40_guard_leader_01
+known_info = known_info@zat_b40_guard_leader_01
+
+[logic@zat_b40_guard_leader_02]:logic@zat_b40_mercs_gen
+suitable = {=check_npc_name(zat_b40_merc_squad_leader_2)} true
+prior = 300
+active = walker@zat_b40_guard_leader_02
+known_info = known_info@zat_b40_guard_leader_02
+
+[logic@zat_b40_guard_01]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_01
+
+[logic@zat_b40_guard_02]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_02
+
+[logic@zat_b40_guard_03]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_03
+
+[logic@zat_b40_guard_04]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_04
+
+[logic@zat_b40_guard_05]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_05
+
+[logic@zat_b40_guard_06]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_06
+
+[logic@zat_b40_guard_07]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_07
+
+[logic@zat_b40_guard_08]:logic@zat_b40_mercs_gen
+active = walker@zat_b40_guard_08
+
+; corp
+
+[known_info@zat_b40_guard_leader_01]
+zat_b40_guard_leader_01_serchd
+
+[known_info@zat_b40_guard_leader_02]
+zat_b40_guard_leader_02_serchd
+
+; camper
+
+[walker@zat_b40_guard_leader_01]:walker@zat_b40_mercs_gen
+def_state_standing = hide
+path_walk = zat_b40_merc_squad_leader_1_walk
+path_look = zat_b40_merc_squad_leader_1_look
+on_info = {=surge_started} walker@zat_b40_surge_09
+gather_items_enabled = false
+
+[walker@zat_b40_guard_leader_02]:walker@zat_b40_mercs_gen
+def_state_standing = hide
+path_walk = zat_b40_merc_squad_leader_2_walk
+path_look = zat_b40_merc_squad_leader_2_look
+on_info = {=surge_started} walker@zat_b40_surge_10
+gather_items_enabled = false
+
+[walker@zat_b40_guard_01]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_01_walk
+path_look = zat_b40_merc_01_look
+on_info = {=surge_started} walker@zat_b40_surge_01
+gather_items_enabled = false
+
+[walker@zat_b40_guard_02]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_02_walk
+path_look = zat_b40_merc_02_look
+on_info = {=surge_started} walker@zat_b40_surge_02
+gather_items_enabled = false
+
+[walker@zat_b40_guard_03]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_03_walk
+path_look = zat_b40_merc_03_look
+on_info = {=surge_started} walker@zat_b40_surge_03
+gather_items_enabled = false
+
+[walker@zat_b40_guard_04]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_04_walk
+path_look = zat_b40_merc_04_look
+on_info = {=surge_started} walker@zat_b40_surge_04
+gather_items_enabled = false
+
+[walker@zat_b40_guard_05]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_05_walk
+path_look = zat_b40_merc_05_look
+on_info = {=surge_started} walker@zat_b40_surge_05
+gather_items_enabled = false
+
+[walker@zat_b40_guard_06]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_06_walk
+path_look = zat_b40_merc_06_look
+on_info = {=surge_started} walker@zat_b40_surge_06
+gather_items_enabled = false
+
+[walker@zat_b40_guard_07]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_07_walk
+path_look = zat_b40_merc_07_look
+on_info = {=surge_started} walker@zat_b40_surge_07
+gather_items_enabled = false
+
+[walker@zat_b40_guard_08]:walker@zat_b40_mercs_gen
+path_walk = zat_b40_merc_08_walk
+path_look = zat_b40_merc_08_look
+on_info = {=surge_started} walker@zat_b40_surge_08
+gather_items_enabled = false
+
+;surge
+[walker@zat_b40_surge_01]:walker@zat_b40_surge_gen
+path_walk = walker_1_walk
+path_look = walker_1_look
+on_info = {=surge_complete} walker@zat_b40_guard_01
+gather_items_enabled = false
+
+[walker@zat_b40_surge_02]:walker@zat_b40_surge_gen
+path_walk = walker_2_walk
+path_look = walker_2_look
+on_info = {=surge_complete} walker@zat_b40_guard_02
+gather_items_enabled = false
+
+[walker@zat_b40_surge_03]:walker@zat_b40_surge_gen
+path_walk = walker_3_walk
+path_look = walker_3_look
+on_info = {=surge_complete} walker@zat_b40_guard_03
+gather_items_enabled = false
+
+[walker@zat_b40_surge_04]:walker@zat_b40_surge_gen
+path_walk = walker_4_walk
+path_look = walker_4_look
+on_info = {=surge_complete} walker@zat_b40_guard_04
+gather_items_enabled = false
+
+[walker@zat_b40_surge_05]:walker@zat_b40_surge_gen
+path_walk = walker_5_walk
+path_look = walker_5_look
+on_info = {=surge_complete} walker@zat_b40_guard_05
+gather_items_enabled = false
+
+[walker@zat_b40_surge_06]:walker@zat_b40_surge_gen
+path_walk = walker_6_walk
+path_look = walker_6_look
+on_info = {=surge_complete} walker@zat_b40_guard_06
+gather_items_enabled = false
+
+[walker@zat_b40_surge_07]:walker@zat_b40_surge_gen
+path_walk = walker_7_walk
+path_look = walker_7_look
+on_info = {=surge_complete} walker@zat_b40_guard_07
+gather_items_enabled = false
+
+[walker@zat_b40_surge_08]:walker@zat_b40_surge_gen
+path_walk = surge_4_walk
+path_look = surge_4_look
+on_info = {=surge_complete} walker@zat_b40_guard_08
+gather_items_enabled = false
+
+[walker@zat_b40_surge_09]:walker@zat_b40_surge_gen
+path_walk = surge_5_walk
+path_look = surge_5_look
+on_info = {=surge_complete} walker@zat_b40_guard_leader_01
+gather_items_enabled = false
+
+[walker@zat_b40_surge_10]:walker@zat_b40_surge_gen
+path_walk = surge_3_walk
+path_look = surge_3_look
+on_info = {=surge_complete} walker@zat_b40_guard_leader_02
+gather_items_enabled = false
+

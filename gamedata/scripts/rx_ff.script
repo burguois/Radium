@@ -1,0 +1,271 @@
+--[[
+	scheme_type: generic
+	author: Rulix
+	modified_by: Alundaio
+--]]
+
+--------------------------------------
+evid_dont_shoot = 18803
+actid_dont_shoot = evid_dont_shoot
+--------------------------------------
+
+local STEP_SIZE = 10
+
+local function validate(npc,vid)
+	if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then 
+		return db.used_level_vertex_ids[vid] == nil or db.used_level_vertex_ids[vid] == npc:id()
+	end 
+	return false
+end
+
+local function get_vertex(npc,dir,st)
+	local base_dir = npc:direction()
+	local dir = {}
+	dir[1] = vector_rotate_y(utils.vector_copy_by_val(base_dir),-90)
+	dir[2] = vector_rotate_y(utils.vector_copy_by_val(base_dir),90)
+	dir[3] = vector_rotate_y(utils.vector_copy_by_val(base_dir),-30)
+	dir[4] = vector_rotate_y(utils.vector_copy_by_val(base_dir),30)
+	local vid
+	local radius = 5
+	local base_point = npc:level_vertex_id()
+	for i=1,2 do
+		while (radius <= 10) do
+			vid = level.vertex_in_direction(base_point,dir[i],radius)
+			if (validate(npc,vid)) then
+				return vid
+			end
+			radius = radius + 1
+		end
+	end
+end
+
+local good_acts = {
+					[xr_actions_id.smartcover_action] = true,
+					[xr_actions_id.smartcover_action+2] = true,
+					[xr_actions_id.wounded_exist] = true
+					}
+
+class "evaluator_dont_shoot" (property_evaluator)
+function evaluator_dont_shoot:__init(npc,name,storage) super (nil, name)
+	self.st = storage
+	self.st.stage = 0
+end
+
+local function set_flag(npc,val)
+	db.storage[npc:id()].rx_dont_shoot = val
+	return val or false
+end 
+
+function evaluator_dont_shoot:check_in_los(friend,be,be_pos)
+	if (friend and friend:alive() and self.object:relation(friend) < 2) then
+		local pos = self.object:bone_position("bip01_l_finger02") --self.object:bone_position("bip01_spine")
+		local friend_pos = alun_utils.safe_bone_pos(friend,"bip01_spine")
+		
+		local be_dist = pos:distance_to(be_pos)
+		local friend_dist = pos:distance_to(friend_pos)
+		local dir_aim = be_pos:sub(pos):normalize()
+
+		--if (friend_dist < be_dist) then
+			local dir_friend = utils.vector_copy_by_val(friend_pos):sub(pos):normalize()
+			local vec_be,vec_who = utils.vector_copy_by_val(dir_aim):set_length(friend_dist),dir_friend:set_length(friend_dist)
+			local mywho = friend_dist < 1.6 and vec_who:similar(vec_be,0) or vec_who:similar(vec_be,1)
+			if (mywho == 1) then
+				return true
+			end
+		--end
+	end
+end 
+
+function evaluator_dont_shoot:check_all_in_los()
+	local be = self.object:best_enemy()
+	local be_pos = alun_utils.safe_bone_pos(be,"bip01_spine")
+	
+	-- check if actor in los
+	if (self:check_in_los(db.actor,be,be_pos) == true) then
+		self.st.friend_id = db.actor:id()
+		return true 
+	end
+	
+	if not (db.OnlineStalkers) then
+		return
+	end
+
+	local size = #db.OnlineStalkers
+	if (size == 0) then
+		return
+	end
+
+	local sid = self.object:id()
+	local id
+	
+	-- check if any neutral or ally in los
+	for i=1,size do
+		id = db.OnlineStalkers[i]
+		local friend = id  and id ~= sid and db.storage[id] and db.storage[id].object
+
+		if (self:check_in_los(friend,be,be_pos) == true) then 
+			self.st.friend_id = id
+			return true 
+		end
+	end
+
+	return false
+end
+
+function evaluator_dont_shoot:evaluate()
+	--alun_utils.debug_write("eva_dont_shoot")
+	local npc = self.object
+	local be = npc:best_enemy()
+	if (be == nil or not be:alive()) then
+		return set_flag(npc,false)
+	end
+
+	if (db.storage[npc:id()].panicked) then 
+		return set_flag(npc,false)
+	end 
+
+	if good_acts[alun_utils.get_current_action_id(npc)] then
+		return set_flag(npc,false)
+	end
+	
+	if (self.st.__hold_until and validate(npc,self.st.vertex_id) and time_global() < self.st.__hold_until) then 
+		return set_flag(npc,true)
+	end
+	
+	if (self:check_all_in_los()) then
+		self.st.__hold_until = time_global() + 2500
+		return set_flag(npc,true)
+	end
+	
+	self.st.friend_id = nil
+	if (self.st.vertex_id) then 
+		db.used_level_vertex_ids[self.st.vertex_id] = nil
+		self.st.vertex_id = nil
+	end
+
+	return set_flag(npc,false)
+end
+
+class "action_verso" (action_base)
+function action_verso:__init (npc,name,storage) super (nil,name)
+	self.st = storage
+end
+
+function action_verso:initialize()
+	action_base.initialize(self)
+	local npc = self.object
+	npc:set_desired_position()
+	npc:set_desired_direction()
+end
+
+function action_verso:execute()
+	action_base.execute(self)
+	
+	local npc = self.object
+
+	local be = npc:best_enemy()
+	if not (be) then 
+		return 
+	end 
+	
+	local wpn = npc:active_item()
+	if (wpn) then
+		npc:set_item(object.aim1,wpn)
+		npc:set_sight(look.fire_point,alun_utils.safe_bone_pos(be))
+	end
+	npc:set_desired_direction()
+	
+	if not (self.st.vertex_id) then
+		local be_pos = be:position()
+		local friend = self.st.friend_id and db.storage[self.st.friend_id] and db.storage[self.st.friend_id].object 
+		self.st.vertex_id = alun_utils.try_to_strafe(npc) or alun_utils.try_go_aside_object(npc,friend,be_pos) or alun_utils.try_go_position(npc,be_pos)
+	end
+	
+	if (self.st.vertex_id == nil or self.st.vertex_id == npc:level_vertex_id()) then
+		if (self.st.vertex_id) then 
+			db.used_level_vertex_ids[self.st.vertex_id] = nil
+			self.st.vertex_id = nil
+		end
+		state_mgr.set_state(npc,"threat_na",nil,nil,{look_object = be})
+		return 
+	end
+
+	state_mgr.set_state(npc,"assault",nil,nil,{look_object = be})
+end
+
+function action_verso:finalize()
+    action_base.finalize(self)
+	if (self.st.vertex_id) then 
+		db.used_level_vertex_ids[self.st.vertex_id] = nil
+		self.st.vertex_id = nil
+	end
+end
+------------------------------------------------------------------
+----------------- binder 
+
+function setup_generic_scheme(npc,ini,scheme,section,stype,temp)
+	local st = xr_logic.assign_storage_and_bind(npc,ini,"rx_ff",section,temp)
+end
+
+function add_to_binder(npc,ini,scheme,section,st,temp)
+	local manager = npc:motivation_action_manager()
+
+	-- Evaluators
+	if (character_community(npc) == "zombied" or npc:section() == "actor_visual_stalker") then
+		manager:add_evaluator(evid_dont_shoot,property_evaluator_const(false))
+		temp.needs_configured = false
+		return
+	end
+
+	manager:add_evaluator(evid_dont_shoot,evaluator_dont_shoot(npc,"eva_dont_shoot",st))
+
+	temp.action = action_verso(npc,"act_dont_shoot",st)
+	
+	temp.action:add_precondition(world_property(stalker_ids.property_alive,true))
+	temp.action:add_precondition(world_property(stalker_ids.property_enemy,true))
+	temp.action:add_precondition(world_property(evid_dont_shoot,true))
+	temp.action:add_effect(world_property(evid_dont_shoot,false))	
+	
+	manager:add_action(actid_dont_shoot,temp.action)
+end
+
+function configure_actions(npc,ini,scheme,section,stype,temp)
+	temp.action:add_precondition(world_property(xr_evaluators_id.sidor_wounded_base,false))
+	temp.action:add_precondition(world_property(xr_evaluators_id.wounded_exist,false))
+	--temp.action:add_precondition(world_property(xr_evaluators_id.state_mgr+1,true))
+
+	if rx_gl then
+		temp.action:add_precondition(world_property(rx_gl.evid_gl_reload,false))
+	end
+	if xrs_facer then
+		temp.action:add_precondition(world_property(xrs_facer.evid_facer,false))
+	end
+
+	local manager = npc:motivation_action_manager()
+	local action
+	local p = {
+				stalker_ids.action_combat_planner,
+				--xr_actions_id.state_mgr + 1,
+				xr_actions_id.state_mgr + 2,
+				xr_actions_id.alife
+	}
+	for i=1,#p do
+		action = manager:action(p[i])
+		if (action) then
+			action:add_precondition(world_property(evid_dont_shoot,false))
+		else
+			printf("xr_corpse_detection: no action id p[%s]",i)
+		end
+	end
+end 
+
+function disable_generic_scheme(npc,scheme,stype)
+	local st = db.storage[npc:id()]["rx_ff"]
+	if st then
+		st.enabled = false
+	end
+end
+
+function npc_add_precondition(action)
+	action:add_precondition(world_property(evid_dont_shoot,false))
+end

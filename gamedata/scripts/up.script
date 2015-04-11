@@ -1,0 +1,136 @@
+----------------------------------------------------------------------------------------------------------------------
+-- File: UP.SCRIPT
+-- Copyright: 2010-2013 SWM Team
+-- Author: Jurok
+-- Description: Основной скрипт
+-- Modified by Alundaio (fix freeplay_clean_territory)
+----------------------------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------------------------
+--- Апдейт игры ---
+----------------------------------------------------------------------------------------------------------------------
+
+function main()
+
+end
+
+----------------------------------------------------------------------------------------------------------------------
+--- Спавн предметов и персонажей ---
+----------------------------------------------------------------------------------------------------------------------
+
+------------------------
+--- Спавн персонажей ---
+------------------------
+
+function up_stalkers_spawn()
+up.zat_stalker_neborsky_dead_spawn()
+up.zat_stalker_merc_1_dead_spawn()
+up.zat_stalker_merc_2_dead_spawn()
+up.zat_stalker_b12_dead_spawn()
+up.zat_stalker_hunter_dead_spawn()
+up.jup_stalker_b211_1_dead_spawn()
+up.jup_stalker_b208_1_dead_spawn()
+up.jup_stalker_b208_2_dead_spawn()
+up.pri_stalker_batay_dead_spawn()
+end
+
+
+function zat_stalker_neborsky_dead_spawn()
+up.spawn_obj("zat_stalker_neborsky_dead", -440.848938, 11.708458, -72.396042, 121986, 253, 1)
+end
+
+function zat_stalker_merc_1_dead_spawn()
+up.spawn_obj("zat_stalker_merc_1_dead", 81.491653, 27.411600, -357.996521, 1105033, 218, 1)
+end
+
+function zat_stalker_merc_2_dead_spawn()
+up.spawn_obj("zat_stalker_merc_2_dead", 148.158081, 27.984652, -400.832275, 1219571, 22, 1)
+end
+
+function zat_stalker_b12_dead_spawn()
+up.spawn_obj("zat_b12_stalker_dead", 430.555206, 33.255634, -148.281219, 1672077, 73, 1)
+end
+
+function zat_stalker_hunter_dead_spawn()
+up.spawn_obj("zat_stalker_hunter_dead", 238.498718, 8.093756, -5.571949, 1373228, 10, 1)
+end
+
+
+function jup_stalker_b211_1_dead_spawn()
+up.spawn_obj("jup_b211_stalker_1_dead", 316.940948, -5.331285, 446.399078, 1226535, 317, 1)
+end
+
+function jup_stalker_b208_1_dead_spawn()
+up.spawn_obj("jup_b208_stalker_1_dead", 420.017395, 9.954163, -69.285095, 1379513, 527, 1)
+end
+
+function jup_stalker_b208_2_dead_spawn()
+up.spawn_obj("jup_b208_stalker_2_dead", 419.495148, 10.110260, -82.661392, 1379478, 531, 1)
+end
+
+
+function pri_stalker_batay_dead_spawn()
+up.spawn_obj("pri_stalker_batay_dead", -41.839497, -0.308941, -348.567108, 146627, 677, 1)
+end
+
+---------------------------------------------
+--- Спавн различных предметов по локациям ---
+---------------------------------------------
+
+function up_objects_spawn()
+up.zat_object_1_spawn()
+up.zat_object_2_spawn()
+up.zat_object_3_spawn()
+up.zat_object_4_spawn()
+up.zat_object_5_spawn()
+up.zat_object_6_spawn()
+up.jup_object_1_spawn()
+end
+
+
+function zat_object_1_spawn()
+up.spawn_obj("miska", 150.264481, -6.824040, -142.279861, 1224668, 13, 1)
+end
+
+function zat_object_2_spawn()
+up.spawn_obj("tarelka1", 150.101196, -5.911881, -139.134613, 1224671, 13, 1)
+end
+
+function zat_object_3_spawn()
+up.spawn_obj("vodka", 149.963806, -5.917306, -138.056610, 1224673, 13, 1)
+end
+
+function zat_object_4_spawn()
+up.spawn_obj("krujka", 149.815063, -5.901786, -137.895782, 1224673, 13, 1)
+end
+
+function zat_object_5_spawn()
+up.spawn_obj("vedro_01", 149.943054, -6.823942, -136.831146, 1222249, 13, 1)
+end
+
+function zat_object_6_spawn()
+up.spawn_obj("roof_1", 152.203471, -4.420000, -139.941121, 1227073, 13, 1)
+end
+
+
+function jup_object_1_spawn()
+up.spawn_obj("transiver", -228.057693, -2.307170, 80.977470, 331134, 385, 1)
+end
+
+
+-------------------------
+--- Работа со спавном ---
+-------------------------
+
+function spawn_obj(name, x, y, z, lv, gv, count)
+if (name==nil) then
+return
+end
+if (count==nil or count<=0) then
+count = 1
+end
+for i=1, count do
+alife():create(name,vector():set(x, y, z),lv,gv)
+end
+end
+

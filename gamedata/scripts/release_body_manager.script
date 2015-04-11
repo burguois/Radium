@@ -1,0 +1,180 @@
+-- Alundaio (original: Distemper [11.02.08])
+---------------------------------------------------------------------------------------------
+-- About: Only non-story objects with no items in the death_generic keep items list can be considered for removal.
+-- This table is also used by xr_corpse_detection.script
+
+local MIN_RELEASE_DISTANCE = 22500		-- dist*dist away from actor required before releasing
+local BODY_MAX_COUNT = 15				-- The max amount of corpses that can exist before checking for releasable corpses.
+
+local RB_manager = nil
+function get_release_body_manager()
+	if(RB_manager==nil) then
+		RB_manager = Crelease_body()
+	end
+	return RB_manager
+end
+
+local function has_known_info(obj)
+	local spawn_ini = obj.spawn_ini and obj:spawn_ini()
+	local filename = spawn_ini and alun_utils.read_from_ini(spawn_ini,"logic","cfg","string")
+
+	local FS = getFS()
+	local char_ini
+	local st = db.storage[obj:id()]
+	if (filename and FS:exist("$game_config$",filename)) then
+		char_ini = ini_file(filename)
+	else
+		char_ini = st.ini
+	end
+
+	local known_info = alun_utils.read_from_ini(char_ini,st.section_logic,"known_info","string") or "known_info"
+	if (char_ini and char_ini:section_exist(known_info)) then
+		return true
+	end
+
+	if (spawn_ini and spawn_ini:section_exist(known_info)) then
+		return true
+	end
+
+	return false
+end
+
+class "Crelease_body"
+function Crelease_body:__init()
+	self.release_objects_table = {}
+	self.keep_items_table = {}
+	self.size = 0
+
+	local snd_ini = ini_file("misc\\death_generic.ltx")
+	if not snd_ini:section_exist("keep_items") then
+		printf("There is no section [keep_items] in death_generic.ltx")
+	end
+	local n = snd_ini:line_count("keep_items")
+	local value = ""
+	for i = 0, n - 1 do
+		result, section, value  = snd_ini:r_line("keep_items", i, "", "")
+		self.keep_items_table[section] = true
+	end
+end
+
+function Crelease_body:can_release(obj)
+	-- Monsters aren't special ever, so put them in
+	if (IsMonster(obj)) then
+		return true
+	end
+
+	-- Never put story related NPCs in this list
+	if (has_known_info(obj) or get_object_story_id(obj:id())) then
+		return false
+	end
+
+	-- Avoid putting corpses with quest items in list
+	for k,v in pairs(self.keep_items_table) do
+		if (obj:object(k) == true) then
+			return false
+		end
+	end
+
+	return true
+end
+
+function Crelease_body:add_corpse(obj,id)
+	id = id or obj and obj:id()
+	obj = obj or id and level.object_by_id(id)
+
+	if (id == nil or obj == nil) then
+		return false
+	end
+
+	if (self:can_release(obj) ~= true) then
+		return false
+	end
+
+	if not (self.release_objects_table[id]) then
+		self.release_objects_table[id] = true
+		self.size = self.size + 1
+		return true
+	end
+
+	return false
+end
+
+
+function Crelease_body:moving_dead_body(obj,net_spawn)
+
+	if (not net_spawn and self.size > BODY_MAX_COUNT) then
+		self:clear()
+	end
+
+	self:add_corpse(obj)
+end
+
+local function release_object(p)
+	local sim = alife()
+	local se_obj = p[1] and sim:object(p[1])
+	if not (se_obj) then
+		return true
+	end
+
+	if (se_obj.online) then
+		se_obj:switch_offline()
+		return false
+	end
+
+	--printf("safe released %s",se_obj:name())
+	sim:release(se_obj,true)
+
+	return true
+end
+
+local safety_time
+function Crelease_body:clear(all,dist,now)
+	if not (db.actor) then
+		return
+	end
+
+	local sim = alife()
+	if not (sim) then
+		return
+	end
+
+	local pos = db.actor:position()
+	dist = dist or MIN_RELEASE_DISTANCE
+
+	local se_obj, obj
+	for id, v in pairs(self.release_objects_table) do
+		if (all == nil and self.size < BODY_MAX_COUNT) then
+			return
+		end
+
+		se_obj = sim:object(id)
+		if (se_obj and not se_obj:alive()) and (IsStalker(se_obj) or IsMonster(se_obj)) then
+			if (all or pos:distance_to_sqr(se_obj.position) >= dist) then
+				--printf("release_body_manager:safe_remove_npc: releasing %s from the game",se_obj:name())
+
+				if (now) then
+					sim:release(se_obj,true)
+				else
+					create_delayed_event(id,"safe_release",math.random(1,8),release_object,id)
+				end
+
+				self.release_objects_table[id] = nil
+				self.size = self.size - 1
+			end
+		else
+			self.release_objects_table[id] = nil
+			self.size = self.size - 1
+		end
+	end
+
+end
+
+function Crelease_body:save(packet)
+
+end
+
+function Crelease_body:load(reader)
+
+end
+
+

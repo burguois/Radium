@@ -1,0 +1,16 @@
+[smart_terrain];zat_sim_10
+squad_id = 26
+max_population = 2
+respawn_params = respawn@zat_sim_10
+
+[respawn@zat_sim_10]
+spawn_hostile
+spawn_hostile_bandit
+
+[spawn_hostile]
+spawn_squads = simulation_hostile_killer
+spawn_num = 2
+
+[spawn_hostile_bandit]
+spawn_squads = simulation_hostile_bandit
+spawn_num = {+zat_b7_actor_help_stalkers} 2, 0

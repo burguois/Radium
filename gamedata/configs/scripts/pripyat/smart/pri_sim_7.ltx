@@ -1,0 +1,16 @@
+;--------------------------------------------------------------------------------
+;-- Copyright: 2010-2012 SWM Team -----------------------------------------------
+;-- last edited: Jurok ----------------------------------------------------------
+;--------------------------------------------------------------------------------
+
+[smart_terrain]
+squad_id = 30
+max_population = 1
+respawn_params = respawn@pri_sim_7
+
+[respawn@pri_sim_7]
+merc_sim_squad
+
+[merc_sim_squad]
+spawn_squads = pri_simulation_stalker_veteran, pri_simulation_stalker_veteran, pri_simulation_stalker_master
+spawn_num =  {+pri_a28_actor_in_zone_stay} 1, 0

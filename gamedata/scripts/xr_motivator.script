@@ -1,0 +1,538 @@
+--[[------------------------------------------------------------------------------------------------------------------
+автор: ƒиденко –услан (Stohe)
+
+пор€док вызова методов биндера:
+reload
+reinit
+load
+net_spawn
+--------------------------------------------------------------------------------------------------------------------]]
+
+local alife,math,pairs = alife,math,pairs
+
+class "motivator_binder" (object_binder)
+function motivator_binder:__init (obj) super(obj)
+	self.loaded = false
+	self.last_update = 0
+
+	self.first_update = false
+	self.upd_stage = 1
+
+	--self.opened_doors = {}
+end
+
+function motivator_binder:extrapolate_callback(cur_pt)
+	if self.st.active_section then
+		xr_logic.issue_event(self.object, self.st[self.st.active_scheme], "extrapolate_callback")
+		self.st.move_mgr:extrapolate_callback(self.object)
+	end
+
+	local ptr = self.object:patrol() and patrol(self.object:patrol())
+	if ptr and ptr:flags(cur_pt):get() == 0 then
+		return true
+	end
+	return false
+end
+
+function motivator_binder:reinit()
+	--alun_utils.debug_write(self.object:name()..":motivator_reinit() start")
+	--printf("motivator_binder:reinit() %s",self.object:name())
+	object_binder.reinit(self)
+
+	local id = self.object:id()
+	db.storage[id] = db.storage[id] or {}
+	db.storage[id].followers = db.storage[id].followers or {}
+
+	self.st = db.storage[id]
+
+	self.st.state_mgr = state_mgr.bind_manager(self.object)
+
+	self.st.move_mgr = move_mgr.move_mgr(self.object)
+	self.st.move_mgr:initialize()
+	--alun_utils.debug_write(self.object:name()..":motivator_reinit() end")
+end
+----------------------------------------------------------------------------------------------------------------------
+function motivator_binder:net_spawn(sobject)
+	--alun_utils.debug_write("\n----"..sobject:name()..":net_spawn()----",true)
+	if not object_binder.net_spawn(self, sobject) then
+		return false
+	end
+
+	local visual = utils.cfg_get_string(system_ini(), self.object:section(), "set_visual", obj, false, "")
+	if (visual and visual ~= "") then
+		if visual == "actor_visual" then
+			self.object:set_visual_name(db.actor:get_visual_name())
+		else
+			self.object:set_visual_name(visual)
+		end
+	end
+
+	self.object:apply_loophole_direction_distance(1.0)
+
+	if self.loaded == false then
+		local spawn_ini = self.object:spawn_ini()
+		local filename = spawn_ini and utils.cfg_get_string(spawn_ini, "logic", "cfg", self.object, false, "")
+		local char_ini = filename and ini_file(filename) or spawn_ini or ini_file("scripts\\dummy.ltx")
+		xr_info.loadInfo(self.object, char_ini)
+	end
+
+	self.object:set_callback(callback.use_object, motivator_binder.use_callback, self)
+	self.object:set_callback(callback.on_item_take, self.on_item_take, self)
+	self.object:set_callback(callback.on_item_drop, self.on_item_drop, self)
+		
+	db.add_obj(self.object)
+	if not self.object:alive() then
+		self.object:death_sound_enabled(false)
+		--alun_utils.debug_write(sobject:name()..":net_spawn() Moving dead body...")
+		release_body_manager.get_release_body_manager():moving_dead_body(self.object,true)
+		--alun_utils.debug_write(sobject:name()..":net_spawn() Moving dead body done")
+		
+		-- fix for 'Invalid vertex for object'
+		if not (sobject.m_level_vertex_id < 4294967295 and self.object:accessible(sobject.m_level_vertex_id)) then
+			printf("npc %s has invalid spawning vertex, correcting",sobject:name())
+			local v_id = self.object:accessible_nearest(level.vertex_position(sobject.m_level_vertex_id), vector())
+			self.object:set_npc_position(level.vertex_position(v_id))
+		end
+	
+		return true
+	end
+
+	db.add_enemy(self.object)
+	
+	self.object:set_patrol_extrapolate_callback(motivator_binder.extrapolate_callback, self)
+	self.object:set_callback(callback.hit, motivator_binder.hit_callback, self)
+	self.object:set_callback(callback.death, motivator_binder.death_callback, self)
+	self.object:set_callback(callback.sound, motivator_binder.hear_callback, self)
+	self.object:set_callback(callback.take_item_from_box, self.take_item_from_box, self)
+
+
+	local relation = db.goodwill.relations and db.goodwill.relations[id]
+	if (relation and db.actor) then
+		game_relations.set_npcs_relation(self.object, db.actor, relation)
+	end
+
+	local sympathy = db.goodwill.sympathy and db.goodwill.sympathy[id]
+	if (sympathy) then
+		game_relations.set_npc_sympathy(self.object, sympathy)
+	end
+
+	sound_theme.init_npc_sound(self.object)
+
+	xr_reach_task.add_reach_task_action(self.object)
+	
+	local id = sobject.id
+	local force_set_position
+	if (sobject.m_smart_terrain_id ~= 65535) then
+		local smart = alife():object(sobject.m_smart_terrain_id)
+		if (smart and not smart.disabled) then
+			if not (smart.arriving_npc[id]) then
+				if (smart.npc_info[id]) then
+					if not (smart.npc_info[id].job) then
+						smart:select_npc_job(smart.npc_info[id],true)
+					end
+					if (smart.npc_info[id].job) then
+						local smart_task = smart.npc_info[id].job.alife_task
+						force_set_position = smart_task and smart_task:position() or nil
+					end
+				end
+			end
+		end
+	end
+	
+	if (db.offline_objects[id] and db.offline_objects[id].level_vertex_id) then
+		force_set_position = level.vertex_position(db.offline_objects[id].level_vertex_id)
+	elseif (db.spawned_vertex_by_id[id]) then
+		force_set_position = level.vertex_position(db.spawned_vertex_by_id[id])
+		db.spawned_vertex_by_id[id] = nil
+	end
+
+	if (force_set_position) then 
+		self.object:set_npc_position(force_set_position)
+	end
+	
+	smart_terrain.setup_gulag_and_logic_on_spawn(self.object, self.st, sobject, modules.stype_stalker, self.loaded)
+
+	if character_community(self.object) ~= "zombied" then
+		post_combat_idle.add_post_combat_idle(self.object)
+	end
+
+	self.object:group_throw_time_interval(2000)
+
+	-- start [Alundaio]
+	if (axr_main) then axr_main.npc_on_net_spawn(self.object,sobject) end
+	-- End [Alundaio]
+
+	--alun_utils.debug_write(sobject:name()..":net_spawn() end")
+	return true
+end
+function motivator_binder:on_item_take(item)
+	-- Alundaio
+	if (axr_main) then axr_main.npc_on_item_take(self.object,item) end
+	-- End Alundaio
+end
+
+--Alundaio
+function motivator_binder:take_item_from_box(box,item)
+	if (axr_main) then axr_main.npc_on_item_take_from_box(self.object,box,item) end
+end
+--Alundaio
+
+function motivator_binder:on_item_drop(item)
+	-- Alundaio
+	if (axr_main) then axr_main.npc_on_item_drop(self.object,item) end
+	-- End Alundaio
+end
+function motivator_binder:net_destroy()
+	-- start [Alundaio]
+	if (axr_main) then
+		axr_main.npc_on_net_destroy(self.object)
+	end
+	-- end [Alundaio]
+	xr_combat_ignore.fighting_with_actor_npcs[self.object:id()] = nil
+
+	xr_sound.stop_sounds_by_id(self.object:id())
+
+	if (self.st) then
+		if (self.st.active_scheme) then
+			xr_logic.issue_event(self.object, self.st[self.st.active_scheme], "net_destroy", self.object)
+		end
+		if (self.st.reach_task) then
+			xr_logic.issue_event(self.object, self.st.reach_task, "net_destroy", self.object)
+		end
+		if (self.st.overrides and self.st.overrides.on_offline_condlist) then
+			xr_logic.pick_section_from_condlist(db.actor, self.object, self.st.overrides.on_offline_condlist)
+		end
+	end
+
+	if db.offline_objects[self.object:id()] then
+		db.offline_objects[self.object:id()].level_vertex_id = self.object:level_vertex_id()
+		db.offline_objects[self.object:id()].active_section = db.storage[self.object:id()].active_section
+	end
+
+	--db.storage[self.object:id()] = nil
+
+	db.del_obj(self.object)
+	db.delete_enemy(self.object)
+
+	self:clear_callbacks()
+
+	object_binder.net_destroy(self)
+end
+
+function motivator_binder:clear_callbacks()
+	self.object:set_patrol_extrapolate_callback(nil)
+	self.object:set_callback(callback.hit, nil)
+	self.object:set_callback(callback.death, nil)
+	self.object:set_callback(callback.sound, nil)
+	--Alundaio
+	self.object:set_callback(callback.take_item_from_box, nil)
+	--Alundaio
+end
+
+function motivator_binder:hit_callback(obj, amount, local_direction, who, bone_index)
+	if (amount <= 0) then
+		return
+	end
+
+	if bone_index ~= 15 and amount >= obj.health*100 then
+		obj.health = 0.15
+	end
+
+	if(who:id()==db.actor:id()) then
+		xr_statistic.set_best_weapon(amount)
+	end
+
+	if self.st.active_section then
+		xr_logic.issue_event(obj, self.st[self.st.active_scheme], "hit_callback", obj, amount, local_direction, who, bone_index)
+	end
+	if self.st.combat_ignore then
+		xr_logic.issue_event(obj, self.st.combat_ignore, "hit_callback", obj, amount, local_direction, who, bone_index)
+	end
+	if self.st.combat then
+		xr_logic.issue_event(obj, self.st.combat, "hit_callback", obj, amount, local_direction, who, bone_index)
+	end
+	if self.st.hit then
+		xr_logic.issue_event(obj, self.st.hit, "hit_callback", obj, amount, local_direction, who, bone_index)
+	end
+
+	xr_wounded.hit_callback(obj:id())
+
+	-- start [Alundaio]
+	if (axr_main) then axr_main.npc_on_hit_callback(obj,amount,local_direction,who,bone_index) end
+	-- end [Alundaio]
+end
+
+function motivator_binder:death_callback(victim, who)
+	self:hit_callback(victim, 1, vector():set(0,0,0), who, "from_death_callback")
+
+	local id = self.object:id()
+	xr_combat_ignore.fighting_with_actor_npcs[id] = nil
+
+	death_manager.drop_manager(self.object):create_release_item()
+
+	--self:hit_callback(victim, 1, vector():set(0,0,0), who, "from_death_callback")
+
+	stalker_generic.remove_level_spot(self.object, self.st)
+
+	if who:id() == db.actor:id() then
+		xr_statistic.inc_killed_stalkers_counter()
+		xr_statistic.set_best_monster(self.object)
+	end
+	
+	if (IsStalker(who) and who:alive()) then
+		local count = xr_logic.pstor_retrieve(who,"s_kill_count") or 0
+		if (count >= 255) then 
+			count = 254
+		end
+		xr_logic.pstor_store(who,"s_kill_count",count)
+	end
+
+	local known_info = utils.cfg_get_string(self.st.ini,self.st.section_logic , "known_info", self.object, false, "", nil)
+	if (known_info) then
+		xr_info.loadInfo(self.object, self.st.ini, known_info)
+	end
+
+	if (self.st.state_mgr) then
+		self.st.state_mgr.animation:set_state(nil, true)
+		self.st.state_mgr = nil
+	end
+
+	if self.st.reach_task then
+		xr_logic.issue_event(self.object, self.st.reach_task, "death_callback", victim, who)
+	end
+	if self.st.death then
+		xr_logic.issue_event(self.object, self.st.death, "death_callback", victim, who)
+	end
+	if self.st.active_section then
+		xr_logic.issue_event(self.object, self.st[self.st.active_scheme], "death_callback", victim, who)
+	end
+
+	sr_light.check_light(self.object)
+
+	db.delete_enemy(self.object)
+
+	self:clear_callbacks()
+
+	if (actor_stats.remove_from_ranking) then
+		local community = character_community(self.object)
+		if (community ~= "zombied" and community ~= "monolith") then
+			actor_stats.remove_from_ranking(self.object:id())
+		end
+	end
+	release_body_manager.get_release_body_manager():moving_dead_body(self.object)
+	-- Start [Alundaio]
+	if (axr_main) then axr_main.npc_on_death_callback(self.object,who) end
+	db.storage[id].death_time = game.get_game_time()
+	db.storage[id].death_by_id = who:id()
+	-- End [Alundaio]
+end
+
+function motivator_binder:use_callback(obj, who)
+	if not self.object:alive() then
+		return
+	end
+	dialog_manager.use_npc = obj
+	inventory_upgrades.need_victim(obj)
+	xr_meet.notify_on_use(obj, who)
+	dialog_manager.disabled_phrases[obj:id()] = nil
+	dialog_manager.RandomVal = math.random(1,3)
+	if self.st.active_section then
+		xr_logic.issue_event(self.object, self.st[self.st.active_scheme], "use_callback", obj, who)
+	end
+	-- start [Alundaio]
+	if (axr_main) then axr_main.npc_on_use(obj,who) end
+	-- end [Alundaio]
+end
+
+function motivator_binder:update(delta)
+	object_binder.update(self, delta)
+	
+	--alun_utils.debug_write("motivator_bind:update %s START",self.object and self.object:name())
+
+	local object = self.object
+	local id = object:id()
+	local st = db.storage[id]
+
+	-- check dead
+	local object_alive = object:alive()
+	if not (object_alive) then 
+		if not (self.first_update) then 
+			death_manager.drop_manager(object):create_release_item()
+		end
+		self.first_update = true
+		object:set_tip_text_default()
+		--alun_utils.debug_write("motivator_bind:update %s END 1",self.object and self.object:name())
+		return
+	end 
+	
+	if not (object:best_enemy()) then
+		xr_combat_ignore.fighting_with_actor_npcs[id] = nil
+	end
+	
+	if (self.st.state_mgr) then 
+		self.st.state_mgr:update()
+		if (self.st.state_mgr.combat ~= true and self.st.state_mgr.alife ~= true) then 
+			trade_manager.update(object)
+		end
+	end
+	
+	self.squad = self.squad or get_object_squad(object)
+	if (self.squad and self.squad:commander_id() == id) then 
+		self.squad:update()
+	end
+	
+	-- create a 200 milisecond delay
+	local tg = time_global()
+	if (self.last_update and tg < self.last_update) then
+		--alun_utils.debug_write("motivator_bind:update %s END 2",self.object and self.object:name())
+		return
+	end
+	self.last_update = tg + math.random(200,350)
+
+	sr_light.check_light(object)
+	xr_meet.process_npc_usability(object)
+	stalker_generic.update_invulnerability(object)
+	xr_sound.update(id)
+	
+	--[[
+	local opened_doors = ph_door.try_to_open_door(self.object)
+	utils.copy_table(self.opened_doors, opened_doors)
+
+	local closed_doors = ph_door.try_to_close_door(self.object, self.opened_doors)
+	for id,v in pairs(closed_doors) do
+		self.opened_doors[id] = nil
+	end
+	--]]
+	
+	local st_combat = st.combat
+	if (st.active_scheme) then 
+		local switched
+		if (st_combat) then
+			self.mgr = self.mgr or object:motivation_action_manager()
+			if (self.mgr and self.mgr:initialized() and self.mgr:current_action_id() == stalker_ids.action_combat_planner) then 
+				local overrides = xr_logic.generic_scheme_overrides(object)
+				if (overrides) then 
+					if (overrides.on_combat) then 
+						xr_logic.pick_section_from_condlist(db.actor,object,overrides.on_combat.condlist)
+					end
+					if (st_combat and st_combat.logic) then 
+						if (xr_logic.try_switch_to_another_section(object,st_combat,db.actor)) then 
+							switched = true 
+						elseif (overrides.combat_type) then
+							xr_combat.set_combat_type(object, db.actor, overrides)
+						end
+					end
+				else 
+					xr_combat.set_combat_type(object, db.actor, st_combat)
+				end			
+			end
+		end 
+		
+		if not switched then
+			xr_logic.try_switch_to_another_section(object, st[st.active_scheme], db.actor)
+		end
+	elseif (st_combat) then
+		xr_combat.set_combat_type(object, db.actor, st_combat)
+	end
+	
+	--alun_utils.debug_write("motivator_bind:update %s BEFORE AXR_MAIN",self.object and self.object:name())
+
+	-- Start [Alundaio]
+	if (axr_main) then axr_main.npc_on_update(object,db.storage[id]) end
+	-- End [Alundaio]
+	
+	--alun_utils.debug_write("motivator_bind:update %s END AFTER AXR_MAIN",self.object and self.object:name())
+end
+
+function motivator_binder:reload(section)
+	object_binder.reload(self, section)
+end
+
+function motivator_binder:net_save_relevant()
+	return true
+end
+
+function motivator_binder:save(packet)
+	--alun_utils.debug_write("\n-------motivator save start------ "..self.object:name(),true)
+	set_save_marker(packet, "save", false, "motivator_binder")
+	object_binder.save(self, packet)
+	xr_logic.save_obj(self.object, packet)
+	trade_manager.save(self.object, packet)
+
+	xr_sound.save_npc(packet, self.object:id())
+	dialog_manager.save_npc(packet, self.object:id())
+
+	--[[
+	local i = 0
+	for k,v in pairs(self.opened_doors) do
+		i = i + 1
+	end
+	packet:w_u8(i)
+	for k,v in pairs(self.opened_doors) do
+		packet:w_u16(k)
+	end
+	--]]
+
+	--Alundaio
+	inventory_upgrades.npc_on_save(self.object,packet)
+	--Alundaio
+	set_save_marker(packet, "save", true, "motivator_binder")
+	--alun_utils.debug_write("\nmotivator save end------ "..self.object:name(),true)
+end
+
+function motivator_binder:load(reader)
+	--alun_utils.debug_write("\nmotivator load start "..self.object:name(),true)
+	self.loaded = true
+	set_save_marker(reader, "load", false, "motivator_binder")
+	object_binder.load(self, reader)
+	xr_logic.load_obj(self.object, reader)
+	trade_manager.load(self.object, reader)
+
+	xr_sound.load_npc(reader, self.object:id())
+	dialog_manager.load_npc(reader, self.object:id())
+
+	--[[
+	local i = reader:r_u8()
+	for k = 1,i do
+		local key = reader:r_u16()
+		self.opened_doors[key] = true
+	end
+	--]]
+	
+	--Alundaio
+	inventory_upgrades.npc_on_load(self.object,reader)
+	--Alundaio
+	set_save_marker(reader, "load", true, "motivator_binder")
+	--alun_utils.debug_write("\nmotivator load END "..self.object:name())
+end
+
+function motivator_binder:hear_callback(npc, who_id, sound_type, sound_position, sound_power)
+	if not (npc:alive()) then
+		return
+	end
+
+	if who_id == npc:id() then
+		return
+	end
+	xr_hear.hear_callback(npc, who_id, sound_type, sound_position, sound_power)
+end
+
+function AddToMotivator(npc)
+	if alife() then
+		npc:bind_object(this.motivator_binder(npc))
+	end
+end
+
+-- Ёвалюаторы, которые имеют высший приоритет, и, соответственно, перебивают остальные скрипты собой
+function addCommonPrecondition(action)
+	local wp = world_property
+	action:add_precondition(wp(xr_evaluators_id.stohe_meet_base + 1, false))
+	action:add_precondition(wp(xr_evaluators_id.sidor_wounded_base + 0, false))
+	action:add_precondition(wp(xr_evaluators_id.abuse_base, false))
+	action:add_precondition(wp(xr_evaluators_id.wounded_exist, false))
+	action:add_precondition(wp(xr_evaluators_id.corpse_exist, false))
+	action:add_precondition(wp(stalker_ids.property_items, false))
+	-- start [Alundaio]
+	if (axr_main) then axr_main.npc_add_precondition(action) end
+	-- end [Alundaio]
+end

@@ -1,0 +1,57 @@
+[meet@generic_lager]
+close_distance                 = {=is_wounded} 0, {!surge_started !after_first_meet !actor_friend =is_squad_commander =actor_has_weapon} 10, 2
+close_anim                     = {=is_wounded} nil, {!is_squad_commander} nil, {!actor_friend =actor_has_weapon} threat_na, talk_default
+close_snd_hello                = {=is_wounded} nil, {!is_squad_commander} nil, {=actor_enemy} nil, {!after_first_meet !actor_friend =actor_has_weapon} meet_hide_weapon, meet_hello
+close_snd_bye                  = {=is_wounded} nil, {!is_squad_commander} nil, {=actor_enemy} nil, {!after_first_meet !actor_friend =actor_has_weapon} nil, meet_hello
+close_victim                   = {=is_wounded} nil, {!is_squad_commander} nil, actor
+far_distance                   = 0
+far_anim                       = nil
+far_snd                        = nil
+far_victim                     = nil
+use                            = {=npc_surrendered} true, {=is_wounded} false, {!is_squad_commander} false, {=actor_enemy} false, {=has_enemy} false,  {=dist_to_actor_le(3)} true, false
+snd_on_use                     = {=is_wounded} nil, {=actor_enemy} nil, {!is_squad_commander} meet_use_no_talk_leader,  {=has_enemy} meet_use_no_fight, {=dist_to_actor_le(3)} meet_use_no_default, nil
+meet_dialog                    = {=npc_surrendered} dm_surrender_dialog, nil
+abuse                          = {=has_enemy} false, true
+trade_enable                   = {=actor_enemy} false, true
+allow_break                    = true
+use_text                       = nil
+[meet@generic_animpoint]
+close_distance                 = 0
+close_anim                     = {!is_squad_commander} nil, nil
+close_snd_hello                = {!is_squad_commander} nil, nil
+close_snd_bye                  = {!is_squad_commander} nil, nil
+close_victim                   = {!is_squad_commander} nil, nil
+far_distance                   = 0
+far_anim                       = nil
+far_snd                        = nil
+far_victim                     = nil
+use                            = {=npc_surrendered} true, {=is_wounded} false, {!is_squad_commander} false, {=actor_enemy} false, {=has_enemy} false,  {=dist_to_actor_le(3)} true, false
+snd_on_use                     = {=is_wounded} nil, {=actor_enemy} nil, {!is_squad_commander} meet_use_no_talk_leader,  {=has_enemy} meet_use_no_fight, {=dist_to_actor_le(3)} meet_use_no_default, nil
+meet_dialog                    = {=npc_surrendered} dm_surrender_dialog, nil
+abuse                          = {=has_enemy} false, true
+trade_enable                   = true
+allow_break                    = true
+meet_on_talking                = false
+use_text                       = nil
+
+
+[logic@pas_b400_fake_point_1]
+active = cover@pas_b400_fake_point_1
+
+[cover@pas_b400_fake_point_1]
+meet = meet@generic_lager
+smart = pas_b400_fake
+radius_min = 3
+radius_max = 8
+use_attack_direction = false
+anim = {!npc_community(zombied)} sit_ass, guard
+
+
+[logic@pas_b400_fake_home_1]
+active = mob_home@pas_b400_fake_home_1
+
+[mob_home@pas_b400_fake_home_1]
+gulag_point = true
+home_min_radius = 10
+home_mid_radius = 20
+home_max_radius = 70

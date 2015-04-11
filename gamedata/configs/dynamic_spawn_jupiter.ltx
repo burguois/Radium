@@ -1,0 +1,20 @@
+;==================================
+; Misc.
+;==================================
+
+[radio_jupiter_base]
+section 			= priemnik_gorizont
+position			= -58.112621307373,5.932647228241,203.24978942871
+level_vertex_id		= 623866
+game_vertex_id		= 333
+custom_data			= scripts\sounds\music\playlist_2.ltx
+
+[transceiver_01]
+section				= transiver
+position			= -228.057693,-2.307170,80.977470
+level_vertex_id		= 331134
+game_vertex_id		= 385
+
+function jup_object_1_spawn()
+up.spawn_obj("transiver", -228.057693, -2.307170, 80.977470, 331134, 385, 1)
+end 

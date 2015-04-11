@@ -1,0 +1,69 @@
+function actor_has_luckygun(first_speaker, second_speaker)
+	return db.actor:object("wpn_sig550_luckygun") ~= nil
+end
+function transfer_luckygun(first_speaker, second_speaker)
+	dialogs.relocate_item_section_from_actor(first_speaker, second_speaker, "wpn_sig550_luckygun")
+end
+function give_reward_strelok(first_speaker, second_speaker)
+	dialogs.relocate_item_section_to_actor(first_speaker, second_speaker, "af_gold_fish")
+end
+
+function actor_has_vodka(first_speaker, second_speaker)
+	return db.actor:object("vodka") ~= nil
+end
+function actor_not_has_vodka(first_speaker, second_speaker)
+	return db.actor:object("vodka") == nil
+end
+function transfer_vodka(first_speaker, second_speaker)
+	dialogs.relocate_item_section_from_actor(first_speaker, second_speaker, "vodka")
+end
+
+function actor_has_af_compass(first_speaker, second_speaker)
+	return db.actor:object("af_compass") ~= nil
+end
+function transfer_af_compass(first_speaker, second_speaker)
+	dialogs.relocate_item_section_from_actor(first_speaker, second_speaker, "af_compass")
+end
+function ecolog_sell_compass(first_speaker, second_speaker)
+	dialogs.relocate_money_to_actor(first_speaker, second_speaker, 14000)
+end
+
+function actor_has_pda_medic(first_speaker, second_speaker)
+	return db.actor:object("zat_b22_medic_pda") ~= nil
+end
+function zat_b22_owl_stalker_trader_sell_pda_medic(first_speaker, second_speaker)
+	dialogs.relocate_item_section_from_actor(first_speaker, second_speaker, "zat_b22_medic_pda")
+	dialogs.relocate_money_to_actor(first_speaker, second_speaker, 4000)
+end
+
+function actor_has_sokolov_note(first_speaker, second_speaker)
+	return db.actor:object("jup_b205_sokolov_note") ~= nil
+end
+function jup_b205_owl_stalker_trader_sell_sokolov_note(first_speaker, second_speaker)
+dialogs.relocate_item_section_from_actor(first_speaker, second_speaker, "jup_b205_sokolov_note")
+	dialogs.relocate_money_to_actor(first_speaker, second_speaker, 500)
+end
+
+function actor_has_electra_flash(first_speaker, second_speaker)
+	return db.actor:object("af_electra_flash") ~= nil
+end
+function actor_not_has_electra_flash(first_speaker, second_speaker)
+	return db.actor:object("af_electra_flash") == nil
+end
+function transfer_electra_flash(first_speaker, second_speaker)
+	dialogs.relocate_item_section_from_actor(first_speaker, second_speaker, "af_electra_flash")
+end
+function give_actor_battery(first_speaker, second_speaker)
+	dialogs.relocate_item_section_to_actor(first_speaker, second_speaker, "ammo_gauss_cardan")
+end
+
+function actor_has_merc_pda_with_contract(first_speaker, second_speaker)
+	return db.actor:object("jup_b207_merc_pda_with_contract") ~= nil
+end
+function actor_not_has_merc_pda_with_contract(first_speaker, second_speaker)
+	return db.actor:object("jup_b207_merc_pda_with_contract") == nil
+end
+
+function actor_has_detector_scientific(first_speaker, second_speaker)
+	return db.actor:object("detector_scientific") ~= nil
+end

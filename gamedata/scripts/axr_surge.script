@@ -1,0 +1,55 @@
+----------------------
+-- Surge effects.
+-- Ddraig
+--/ -----------------------------------------------------------------
+--/ Variables
+--/ -----------------------------------------------------------------
+local pda_open = false
+
+--/ -----------------------------------------------------------------
+--/ Initialize Module
+--/ -----------------------------------------------------------------
+function on_game_start()
+	callback_register("actor_on_info_callback",actor_on_info_callback)
+	callback_register("actor_on_update",actor_on_update)
+end
+
+--/-------------------------------------------------------------------------------------------------
+--/ CallBacks Section
+--/-------------------------------------------------------------------------------------------------
+function actor_on_info_callback(npc,info_id)
+
+	local actor = db.actor
+	if actor then
+		if info_id == "ui_pda" then
+			-- PDA opened
+			-- set flag to indicate PDA is open
+			pda_open = true
+			actor:disable_info_portion("ui_pda_hide")
+		elseif info_id == "ui_pda_hide" then
+			-- PDA closed
+			-- remove flag to indicate PDA is closed
+			pda_open = false
+			actor:disable_info_portion("ui_pda")
+		end
+	end
+
+end
+
+function actor_on_update()
+
+	if not xr_conditions.emp_present() then return end
+
+	disable_torch()
+	
+end
+
+function disable_torch()
+
+	local device = db.actor:object("device_torch")
+	if device then
+		device:enable_night_vision(false)
+		device:enable_torch(false)
+	end
+	
+end

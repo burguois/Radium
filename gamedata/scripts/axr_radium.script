@@ -1,0 +1,270 @@
+----------------------
+-- Radium Scripts
+-- Ddraig
+--/ -----------------------------------------------------------------
+--/ Initialize Module
+--/ -----------------------------------------------------------------
+function on_game_start()
+	callback_register("actor_on_update",actor_on_update)
+	callback_register("actor_on_item_use",actor_on_item_use)
+end
+--/ -----------------------------------------------------------------
+--/ Process (functions)
+--/ -----------------------------------------------------------------
+-- Real randomness, thanks to OGSE.
+function real_rand(first, second)
+	local vert = nil
+	local money = 97359
+	local out_rand = 0
+	if db.actor then
+		vert = db.actor:level_vertex_id()
+		money = db.actor:money()
+	else
+		vert = 168794
+	end
+	
+	local function reseed_rand(a, b)
+		math.randomseed(math.ceil(tonumber(time_global())/tonumber(vert)*math.random(5,75)+(money*out_rand)))
+		math.random()
+		if a and b then
+			out_rand = math.random(a, b)
+		elseif a then
+			out_rand = math.random(a)
+		else
+			out_rand = math.random()		
+		end
+		lastrand = out_rand
+	end
+	
+	if first and second then
+		math.random()
+		math.randomseed(math.ceil(tonumber(time_global())/tonumber(vert)*math.random(5,75)+money*lastrand))
+		math.random()
+		out_rand = math.random(first, second)
+		if out_rand == lastrand then
+			reseed_rand(first, second)
+		end
+		lastrand = out_rand
+		return out_rand
+	elseif first then
+		math.random()
+		math.randomseed(math.ceil(tonumber(time_global())/tonumber(vert)*math.random(5,75)+money*lastrand))
+		math.random()
+		if first > 1 then
+			out_rand = math.random(first)
+		else
+			return 1
+		end
+		if out_rand == lastrand then
+			reseed_rand(first)
+		end
+		lastrand = out_rand		
+		return out_rand
+	else
+		math.random()
+		math.randomseed(math.ceil(tonumber(time_global())/tonumber(vert)*math.random(5,75)+money*lastrand))
+		math.random()
+		out_rand = math.random()
+		if out_rand == lastrand then
+			reseed_rand()
+		end
+		if out_rand > 0 then
+			out_rand = math.random()
+		end
+		lastrand = out_rand				
+		return out_rand
+	end
+end
+
+function create_items(sec,amt,id)
+	if not (system_ini():section_exist(sec)) then
+		alun_utils.printf("axr_radium.script: trying to spawn %s which doesn't exist",sec)
+		return
+	end
+	local se_obj = id and alife():object(id) or alife():object(db.actor:id())
+	if (se_obj) then
+		amt = amt or 1
+		for i=1,amt do
+			alife():create(sec,se_obj.position,se_obj.m_level_vertex_id, se_obj.m_game_vertex_id,se_obj.id)
+		end
+	end
+end
+
+function create_ammunition(sec,amt)
+	if not (system_ini():section_exist(sec)) then
+		alun_utils.printf("axr_misery.script: trying to spawn %s which doesn't exist",sec)
+		return
+	end
+	local num_in_box = system_ini():r_u32(sec, "box_size")
+	amt = amt or 1
+	amt = num_in_box and amt*num_in_box
+	alife():create_ammo(sec,db.actor:position(),db.actor:level_vertex_id(),db.actor:game_vertex_id(),db.actor:id(),amt)
+end
+--/-------------------------------------------------------------------------------------------------
+--/ CallBacks Section
+--/-------------------------------------------------------------------------------------------------
+
+function actor_on_item_take(obj)
+	if not obj then return end
+	local s_obj = alife():object(obj:id())
+	if (ogsm_notepad) then
+		ogsm_notepad.take_note_item(s_obj)
+	end
+end
+
+function actor_on_update()
+
+	this.info_updates()
+
+	if (not has_alife_info("dynamic_actor_spawn_position") and level.name() =="zaton") then
+	
+		this.dynamic_actor_spawn()
+		this.dynamic_actor_loadout()
+
+		give_info("dynamic_actor_spawn_position")
+
+	end
+	
+	-- Dynamic Hud
+	actor_effects.update()
+	
+	-- Dynamic Helmets
+	m_visuals.update()
+	
+	-- Cast Iron liver achievement reward
+	this.castironliver()
+
+end
+
+function monster_on_actor_use_callback(obj)
+
+end
+
+function npc_on_update(binder)
+
+end
+
+function npc_on_use(obj,who)
+	if not obj:alive() then
+		this.lootmoney(obj)
+		if (ogsm_notepad) then
+			ogsm_notepad.note_use_npc(obj)
+		end
+	end
+end
+
+function actor_on_item_use(obj)
+
+	if not obj then 
+		return 
+	end
+	
+	--postprocess_mod.use_obj(obj)
+	
+	local s_obj = alife():object(obj:id())
+	if s_obj and s_obj.section_name then
+		local section = s_obj:section_name()
+		if section == "notepad" then
+			use_notepad(s_obj)
+		elseif section == "vodka" then
+			xr_statistic.inc_vodka_drunk_counter()
+		end
+	end	
+	
+end
+
+--/-------------------------------------------------------------------------------------------------
+--/ Functions
+--/-------------------------------------------------------------------------------------------------
+
+function use_notepad()  
+	ogsm_notepad.notepad():ShowDialog(true)
+	get_hud():HideActorMenu()
+	spawn_item_in_inv("notepad")
+end
+
+function castironliver()
+	if has_alife_info("down_with_the_dead_men") then
+		if db.actor.radiation > 0 then
+			db.actor.radiation = -0.01
+		end
+	end
+end
+
+function lootmoney(npc)
+  
+	if has_alife_info("nimble_firmware_upgrade") or has_alife_info("nimble_firmware_upgrade_bad") then 
+  		local money=npc:money()
+		if npc:character_community() ~= "monolith" and npc:character_name() ~= game.translate_string("zat_b22_stalker_medic_name") then
+			if money ~= nil and money > 0 then
+				local deadmoney = money
+				local npc_rank
+				npc_rank = ranks.get_obj_rank_name(npc)
+					if npc_rank ~= nil then
+						if npc_rank== "novice" and deadmoney >= 75 then 
+							deadmoney = math.random(25,75)
+						elseif npc_rank == "experienced" and deadmoney >= 100 then 
+							deadmoney = math.random(25,100)
+						elseif npc_rank ==" veteran" and deadmoney >= 150 then 
+							deadmoney = math.random(50,150)
+						elseif npc_rank=="master" and deadmoney >= 200 then 
+							deadmoney = math.random(50,200)
+						end
+					end
+				if has_alife_info("nimble_firmware_upgrade_bad") then
+					deadmoney = (deadmoney * 0.9) --- Hacker skimming some money off.
+				end
+				local news_caption="Dead Stalker: "..npc:character_name()
+				local news_text="Received Money: %c[255,255,0,0]"..game.translate_string(deadmoney).."%c[default] ru."
+				send_tip(news_text,news_caption,3,10,"give_money")
+				db.actor:give_money(deadmoney)
+				game_stats.money_quest_update(deadmoney)
+				npc:give_money(-money)
+				game_stats.money_quest_update(-money)
+			end
+		else
+			npc:give_money(-money)
+			game_stats.money_quest_update(-money)
+		end
+	end
+end
+
+function dynamic_actor_spawn()
+
+	local pos = vector():set(-322.867737,19.469645,627.424133)
+
+	if (pos) then db.actor:set_actor_position(pos) end
+	
+end
+
+function dynamic_actor_loadout()
+
+	this.create_items("itm_actor_backpack")
+	this.create_items("actor_documents")
+	this.create_items("itm_sleepbag")
+	this.create_items("device_torch")
+	this.create_items("wpn_binoc")
+	this.create_items("wpn_knife")
+	this.create_items("padded_outfit")
+	this.create_items("grenade_rgd5",2)
+	this.create_items("wpn_pm_actor")
+   	this.create_items("ammo_9x18_fmj",3)
+	this.create_items("wpn_ak74u")
+	this.create_items("ammo_5.45x39_fmj",3)
+	this.create_items("bandage")
+	this.create_items("antirad")
+	this.create_items("medkit",2)
+
+end
+
+
+--- Constantly checking for info portions and taking appropriate actions. For 'one shot' functions.
+function info_updates()
+
+	-- medic
+	if (has_alife_info("zat_b22_stalker_medic_death") and level.name() =="zaton" and not has_alife_info("zat_stalker_medic_spawn")) then
+		alife():create("zat_stalker_medic",vector():set(110.023,-3.936,185.844),1155265,316)
+        give_info("zat_stalker_medic_spawn")
+	end
+	
+end

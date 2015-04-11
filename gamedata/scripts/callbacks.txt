@@ -1,0 +1,54 @@
+New callbacks:
+
+KeyPress
+KeyRelease (disabled by default, I can re-enable if you need it)
+KeyHold (disabled by default, I can re-enable if you need it)
+MouseMove (disabled by default, I can re-enable if you need it)
+MouseWheel (disabled by default, I can re-enable if you need it)
+ItemToBelt
+ItemToSlot
+ItemToRuck
+EnableTorch
+SwitchTorch
+TorchEnabled
+EnableNightVision
+SwitchNightVision
+NightVisionEnabled
+Weapon_AddonAttach
+Weapon_AddonDetach
+IsActorOutdoors
+IsGameObject
+IsHeli
+IsEntityAlive
+IsInventoryItem
+IsInventoryOwner
+IsActor
+IsCustomMonster
+IsWeapon
+IsMedkit
+IsEatableItem
+IsAntirad
+IsCustomOutfit
+IsScope
+IsSilencer
+IsGrenadeLauncher
+IsWeaponMagazined
+IsSpaceRestrictor
+IsStalker
+IsAnomaly
+IsMonster
+IsExplosive
+IsScriptZone
+IsProjector
+IsTrader
+IsHudItem
+IsFoodItem
+IsArtefact
+IsAmmo
+IsMissile
+IsPhysicsShellHolder
+IsGrenade
+IsBottleItem
+IsTorch
+IsWeaponGL
+IsInventoryBox

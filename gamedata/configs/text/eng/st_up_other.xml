@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<string_table>
+<!--Copyright: 2010 2012 SWM Team-->
+<!--Author: Jurok-->
+<string id="sleep_warning_surge_1">
+	<text>You can not sleep during the release!</text>
+</string>
+ 
+<string id="sleep_warning_surge_2">
+	<text>You can not sleep during the release, besides having a dangerous bleeding!</text>
+</string>
+ 
+<string id="sleep_warning_surge_3">
+	<text>You can not sleep during the release, besides having a high level of irradiance of the body!</text>
+</string>
+ 
+<string id="sleep_warning_surge_4">
+	<text>You can not sleep during the release, besides having a dangerous bleeding and a high level of irradiance of the body!</text>
+</string>
+ 
+<string id="st_resupply_ready_2">
+	<text>Before the surgery, you can resupply ammo from Lieutenant Kirillov.</text>
+</string>
+ 
+</string_table>

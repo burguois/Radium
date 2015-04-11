@@ -1,0 +1,340 @@
+----------------------
+-- AI Tweaks
+-- Alundaio
+--[[
+	Copyright (C) 2012 Alundaio
+	This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
+-]]
+
+local ini = ini_file("ai_tweaks\\ai_tweaks.ltx")
+local InfiniteAmmoPrimary = alun_utils.read_from_ini(ini,"weapon_reload","infinite_ammo_primary","bool",true)
+local InfiniteAmmoSecondary = alun_utils.read_from_ini(ini,"weapon_reload","infinite_ammo_secondary","bool",true)
+local LIOSEnable = alun_utils.read_from_ini(ini,"lios","enable","bool",false)
+local LIOSRange = alun_utils.read_from_ini(ini,"lios","range_add","float",0.30)
+local LIOSFov = alun_utils.read_from_ini(ini,"lios","fov_add","float",-0.30)
+ini = nil
+
+
+
+local scope_flags = {	[1] = true,
+						[3] = true,
+						[5] = true,
+						[7] = true
+}
+
+local gl_flags = {	[2] = true,
+					[4] = true,
+					[6] = true,
+					[7] = true
+}
+
+local silencer_flags = { 	[4] = true,
+							[5] = true,
+							[6] = true,
+							[7] = true
+}
+
+------------------
+-- on_game_start()
+------------------
+function on_game_start()
+	callback_register("npc_on_net_destroy",npc_on_net_destroy)
+	callback_register("npc_on_weapon_sight",npc_on_weapon_sight)
+	callback_register("npc_on_weapon_unsight",npc_on_weapon_unsight)
+	callback_register("npc_on_weapon_no_ammo",npc_on_weapon_no_ammo)
+	--callback_register("npc_on_weapon_unstrapped",npc_on_weapon_unstrapped)
+	--callback_register("squad_can_help_actor",squad_can_help_actor)
+	--callback_register("npc_on_hit_callback",npc_on_hit_callback)
+	callback_register("npc_on_item_take",npc_on_item_take)
+end
+
+function npc_on_hit_callback(npc,who)
+	local reset_states = {
+							["search_corpse"] 	= true,
+							["pickup_crouch"] 	= true,
+							["help_wounded"] 	= true,
+							["help_victim_1"] 	= true,
+							["help_victim_2"] 	= true,
+							["search"]			= true
+	}
+	local state = state_mgr.get_state(npc)
+	if (state and reset_states[state]) then
+		npc:clear_animations()
+	end
+end
+
+
+function npc_on_net_destroy(npc)
+	local st = db.storage[npc:id()]
+	if (st and st.range and st.fov) then
+		npc:set_range(st.range)
+		npc:set_fov(st.fov)
+		st.range = nil
+		st.fov = nil
+	end
+end
+
+-------------------
+-- npc_on_weapon_sight(npc,weapon,storage,sight_type)
+-------------------
+function npc_on_weapon_sight(npc,wpn,st,sight_type)
+	if not (LIOSEnable) then
+		return
+	end
+
+	if not (alun_utils.addon_attached(wpn,"sc")) then
+		return
+	end
+
+	local sec = wpn:section()
+	local scope = alun_utils.read_from_ini(nil,sec,"scope_status","string",nil) == 2 and alun_utils.read_from_ini(nil,sec,"scopes_sect","string",nil) or sec
+	local zoom = alun_utils.read_from_ini(nil,scope,"scope_zoom_factor","float",30)
+	local max_range = alun_utils.read_from_ini(nil,sec,"fire_distance","float",150)
+
+	if not (st.range) then
+		st.range = npc:range()
+	end
+
+	if not (st.fov) then
+		st.fov = npc:fov()
+	end
+
+	if (zoom < 80 and max_range > st.range) then
+		zoom = 30/zoom
+
+		local range = st.range + (st.range * LIOSRange * zoom)
+		if (range > max_range) then
+			range = max_range
+		end
+
+		local fov = st.fov + (st.fov * LIOSFov * zoom)
+		if (fov < 40) then
+			fov = 40
+		end
+
+		npc:set_range(range)
+		npc:set_fov(fov)
+	end
+end
+
+-------------------
+-- npc_on_weapon_unsight(npc,weapon,storage,sight_type)
+-------------------
+function npc_on_weapon_unsight(npc,wpn,st,sight_type)
+	if (st.range and st.fov) then
+		npc:set_range(st.range)
+		npc:set_fov(st.fov)
+		st.range = nil
+		st.fov = nil
+	end
+end
+
+------------------
+-- npc_on_weapon_no_ammo(npc,weapon,storage)
+-------------------
+function npc_on_weapon_no_ammo(npc,wpn,st)
+
+	local isPistol = alun_utils.isPistol(wpn)
+	if (isPistol and InfiniteAmmoSecondary) or (not isPistol and (axr_misery and axr_misery.Config:GetValue("settings","infinite_npc_primary_ammo",1) or InfiniteAmmoPrimary)) then
+		return
+	end
+
+	local ini = system_ini()
+	local sec = wpn:section()
+	local se_wpn = alife():object(wpn:id())
+	local data = stpk_utils.get_weapon_data(se_wpn)
+	if (data) then
+		local ammos = alun_utils.parse_list(ini,sec,"ammo_class")
+
+		local box = data.ammo_type+1 == 1 and npc:object(ammos[1]) or npc:object(ammos[2])
+		if (box) then
+			alife():release( alife():object(box:id()), true)
+		end
+	end
+end
+
+-------------------
+--
+-------------------
+
+local function attach_addon(p)
+	local sim = alife()
+	if not (sim) then
+		return true
+	end
+
+	local se_wpn = p[1] and sim:object(p[1])
+	if not (se_wpn) then
+		return true
+	end
+
+	if not (p[3]) then
+		return true
+	end
+
+	-- make sure weapon and parent are offline
+	local parent = se_wpn.parent_id ~= 65535 and sim:object(se_wpn.parent_id)
+	if (parent and parent.online) then
+		local dist = db.actor:position():distance_to_sqr(parent.position)
+		if (dist < 5000) then
+			if (alun_utils.angle_diff(db.actor:direction(), db.actor:position():sub(parent.position)) > 90) then
+				return false
+			end
+		end
+
+		parent:switch_offline()
+		return false
+	elseif (se_wpn.online) then
+		se_wpn:switch_offline()
+		return false
+	end
+
+	-- get packet data
+	local data = stpk_utils.get_weapon_data(se_wpn)
+	if not (data) then
+		return true
+	end
+
+	-- set addon flag
+	data.addon_flags = data.addon_flags + p[3]
+	stpk_utils.set_weapon_data(data,se_wpn)
+
+	-- remove addon
+	local se_addon = p[2] and sim:object(p[2])
+	if (se_addon) then
+		sim:release(se_addon,true)
+	end
+
+	if (parent and not parent.online) then
+		parent:switch_online()
+	elseif not (se_wpn.online) then
+		se_wpn:switch_online()
+	end
+
+	return true
+end
+
+function npc_on_item_take(npc,item)
+	if not (npc:alive()) then
+		return
+	end
+
+	local weapon = npc:best_weapon()
+	if not (weapon) then
+		return
+	end
+
+	local itm_sec = item:section()
+	local sec = weapon:section()
+
+	-- check scope status
+	local sc_status = alun_utils.read_from_ini(nil,sec,"scope_status","float",0)
+	local sc_name = sc_status == 2 and alun_utils.read_from_ini(nil,sec,"scope_name","string","")
+
+	if (sc_name == itm_sec) then
+		if (weapon:weapon_is_scope() and alun_utils.get_addon_status(weapon,"sc") == 2) then
+			return -- already has sc attached
+		end
+		create_delayed_event(npc:id(),"attach_addon",2,attach_addon,weapon:id(),item:id(),1)
+		return
+	end
+
+	-- check gl status
+	local gl_status = alun_utils.read_from_ini(nil,sec,"grenade_launcher_status","float",0)
+	local gl_name = gl_status == 2 and alun_utils.read_from_ini(nil,sec,"grenade_launcher_name","string","")
+
+	if (gl_name == itm_sec) then
+		if (weapon:weapon_is_grenadelauncher() and alun_utils.get_addon_status(weapon,"gl") == 2) then
+			return -- already has gl attached
+		end
+		create_delayed_event(npc:id(),"attach_addon",2,attach_addon,weapon:id(),item:id(),2)
+		return
+	end
+
+	-- check silencer status
+	local si_status = alun_utils.read_from_ini(nil,sec,"silencer_status","float",0)
+	local si_name = si_status == 2 and alun_utils.read_from_ini(nil,sec,"silencer_name","string","")
+
+	if (si_name == itm_sec) then
+		if (weapon:weapon_is_silencer() and alun_utils.get_addon_status(weapon,"sl") == 2) then
+			return -- already has si attached
+		end
+		create_delayed_event(npc:id(),"attach_addon",2,attach_addon,weapon:id(),item:id(),4)
+		return
+	end
+end
+
+-------------------
+-- npc_on_weapon_unstrapped(npc,weapon)
+-------------------
+function npc_on_weapon_unstrapped(npc,weapon)
+	if not (weapon) then
+		return
+	end
+
+	local id = weapon:id()
+	local se_wpn = alife():object(id)
+
+	local data = stpk_utils.get_weapon_data(se_wpn)
+	if not (data) then
+		return
+	end
+
+	local sim = alife()
+
+	local sec = weapon:section()
+	local flag = data.addon_flags
+
+	if not (scope_flags[data.addon_flags]) then
+		local sc_status = alun_utils.read_from_ini(nil,sec,"scope_status","float",0)
+		local sc_name = sc_status == 2 and alun_utils.read_from_ini(nil,sec,"scope_name","string","")
+		local sc = sc_name and npc:object(sc_name)
+		if (sc) then
+			flag = flag + 1
+			sim:release(sim:object(sc:id()),true)
+		end
+	end
+
+	if not (gl_flags[data.addon_flags]) then
+		local gl_status = alun_utils.read_from_ini(nil,sec,"grenade_launcher_status","float",0)
+		local gl_name = gl_status == 2 and alun_utils.read_from_ini(nil,sec,"grenade_launcher_name","string","")
+		local gl = gl_name and npc:object(gl_name)
+		if (gl) then
+			flag = flag + 2
+			sim:release(sim:object(gl:id()),true)
+		end
+	end
+
+	if not (silencer_flags[data.addon_flags]) then
+		local si_status = alun_utils.read_from_ini(nil,sec,"silencer_status","float",0)
+		local si_name = si_status == 2 and alun_utils.read_from_ini(nil,sec,"silencer_name","string","")
+		local si = si_name and npc:object(si_name)
+		if (si) then
+			flag = flag + 4
+			sim:release(sim:object(si:id()),true)
+		end
+	end
+
+	if (data.addon_flags ~= flag) then
+		local function update_addon_flag(se_wpn,p)
+			if (se_wpn) then
+				local data = stpk_utils.get_weapon_data(se_wpn)
+				if (data) then
+					data.addon_flags = flag
+					stpk_utils.set_weapon_data(data,se_wpn)
+				end
+			end
+		end
+		alun_utils.switch_offline_execute(se_wpn.id,update_addon_flag,flag)
+	end
+end
+
+-------------------
+-- squad_can_help_actor(squad)
+-------------------
+function squad_can_help_actor(squad)
+	if (game_relations.get_squad_goodwill_to_actor_by_id(squad.id) == "friend" and db.actor:position():distance_to_sqr(squad.position) <= 10000) then
+		return true
+	end
+end
+
