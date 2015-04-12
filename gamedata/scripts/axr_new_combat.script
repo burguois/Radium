@@ -1,0 +1,1204 @@
+--[[
+	scheme_type: generic
+	author: Alundaio
+--]]
+
+--TODO: Fix heli aim targetting!
+
+-- disable it entirely
+local ENABLE = true
+
+-- all ranks will use script and at highest level of AI
+local IGNORE_RANK = false
+
+-- all npcs will use this combat behavior
+local GLOBAL_OVERRIDE = false
+
+--------------------------------------
+actid = 188115
+evaid = 188115
+--------------------------------------
+local math_random = math.random
+
+-------------------------------------------------------------------------------------
+--												PRIVATE
+--------------------------------------------------------------------------------------
+local function validate(npc,vid)
+	if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then 
+		return db.used_level_vertex_ids[vid] == nil or db.used_level_vertex_ids[vid] == npc:id()
+	end 
+	return false
+end 
+
+local function lmove(npc,vid,st)
+	if (vid == nil or vid >= 4294967295) then 
+		return 
+	end
+	
+	if (db.used_level_vertex_ids[vid] == npc:id()) then
+		npc:set_dest_level_vertex_id(vid)
+		return vid 
+	end
+	
+	if (st.vid) then 
+		db.used_level_vertex_ids[st.vid] = nil
+	end
+	
+	if not (npc:accessible(vid)) then
+		local vtemp = vector()
+		vid, vtemp = npc:accessible_nearest(vid and level.vertex_position(vid) or npc:position(), vtemp )
+	end
+
+	db.used_level_vertex_ids[vid] = npc:id()
+	st.vid = vid
+	
+	npc:set_dest_level_vertex_id(vid)
+	return vid
+end
+
+local function lmove_ns(npc,vid,st)
+	if (vid == nil or vid >= 4294967295) then 
+		return 
+	end
+	
+	if (db.used_level_vertex_ids[vid] == npc:id()) then
+		npc:set_dest_level_vertex_id(vid)
+		return vid 
+	end
+	
+	if (st.vid) then 
+		db.used_level_vertex_ids[st.vid] = nil
+	end
+	
+	if not (npc:accessible(vid)) then
+		local vtemp = vector()
+		vid, vtemp = npc:accessible_nearest(vid and level.vertex_position(vid) or npc:position(), vtemp )
+	end
+
+	st.vid = vid
+	
+	npc:set_dest_level_vertex_id(vid)
+	return vid
+end
+
+local good_acts = {
+					[xr_actions_id.smartcover_action] = true,
+					[xr_actions_id.smartcover_action+2] = true
+					}
+
+local function best_heli(npc)
+	local sim = alife()
+	local se_heli
+	for id,o in pairs(db.heli) do
+		local dist = heli_alife.distance_2d_sqr(npc:position(),o:position())
+		if (dist < 46000 and db.storage[id] and db.storage[id].enemy_id) then
+			se_heli = sim:object(o:id())
+			if (se_heli and se_heli.community and se_heli.community ~= character_community(npc)) then
+				return o
+			end
+		end
+	end
+end 
+
+local function find_valid_target(npc,st,bw)
+	--alun_utils.debug_write("axr_new_combat.find valid target")
+	if (st.overflowdetect) then
+		printf("C Stack Overflow Prevention: warning axr_new_combat scheme making repeated calls without return; save now and reload!")
+		return false
+	end
+	
+	-- Evaluate current target
+	local tg = time_global()
+	local current_target = st.target_id and db.storage[st.target_id] and db.storage[st.target_id].object
+	if (current_target and not IsHelicopter(current_target)) then
+		local mem_time = npc:memory_time(current_target)
+		if (mem_time == nil or tg-mem_time > 12000 or current_target:alive() ~= true or xr_wounded.is_wounded(current_target) or not xr_combat_ignore.is_enemy(npc,current_target)) then
+			st.target_id = nil
+			current_target = nil
+		end
+	end
+	
+	-- Keep target for short duration to prevent over evaluating and to prevent constant target switching
+	if (current_target) then 
+		if (st.__keep_target_until and tg < st.__keep_target_until) then 
+			return true
+		end
+	end 
+	
+	if not (st.index) then
+		st.index = 1
+	end
+
+	if not (st.memory) then
+		st.memory = {}
+	end
+
+	local size = #st.memory
+	if (size == 0) then
+		local i = 0
+		local obj,cls
+
+		-- Create a list of valid targets to iterate through one index per update
+		st.overflowdetect = true
+		for o in npc:memory_visible_objects() do
+			obj = o and o:object()
+			if (obj) then 
+				cls = obj.clsid and obj:clsid()
+				if (cls) and ((IsStalker(nil,cls) or IsMonster(nil,cls)) and obj:alive() and npc:relation(obj) >= game_object.enemy) then
+					i = i + 1
+					table.insert(st.memory,obj:id())
+				end
+			end
+		end
+		for id,o in pairs(db.heli) do 
+			table.insert(st.memory,id)
+		end
+		st.overflowdetect = nil
+		if (i==0) then
+			return current_target ~= nil
+		end
+
+		size = i
+	end
+
+	if (size == 0 or st.index > size) then
+		st.index = 1
+		clear_table(st.memory)
+		return current_target ~= nil
+	end
+
+	local id = st.memory[st.index]
+	st.index = st.index + 1
+
+	-- current target was already evaluated and passed
+	if (current_target and id == current_target:id()) then 
+		return true
+	end 
+	
+	local target = id and (db.storage[id] and db.storage[id].object or level.object_by_id(id))
+
+	if (target and IsHelicopter(target)) then 
+		if not (current_target) then 
+			local dist = heli_alife.distance_2d_sqr(npc:position(),target:position())
+			if (dist < 40000) then 
+				st.target_id = target:id()
+				st.__keep_target_until = tg + 6000
+				return true
+			end
+		else
+			return true 
+		end
+	end 
+	
+	-- Evaluate currently indexed target
+	if (target and target:alive() and not xr_wounded.is_wounded(target) and npc:memory_time(target) and tg-npc:memory_time(target) <= 12000) then
+		if (current_target) then
+			local dist = npc:position():distance_to_sqr(target:position())
+			local be_dist = npc:position():distance_to_sqr(current_target:position())
+			
+			-- Only target the closest target
+			if (dist < be_dist and xr_combat_ignore.is_enemy(npc,target) == true) then
+				--printf("closer target %s",target and target:name())
+				st.target_id = target:id()
+				st.__keep_target_until = tg + 6000
+				return true
+			end
+		elseif (xr_combat_ignore.is_enemy(npc,target) == true) then 
+			st.__keep_target_until = tg + 6000
+			st.target_id = target:id()
+			return true
+		end
+	end
+	
+	return current_target ~= nil
+end
+
+local function check_overrides(npc)
+	local id = npc:id()
+	local st = db.storage[id] and db.storage[id].overrides
+	if not (st) then
+		return false
+	end
+	local script_combat_type = st and st.combat_type and xr_logic.pick_section_from_condlist(db.actor, npc, st.combat_type.condlist)
+	return script_combat_type and script_combat_type == "new_combat" or false
+end 
+
+--------------------------------------------------------------------------------------
+--												EVALUATOR NEW COMBAT
+--------------------------------------------------------------------------------------
+
+class "evaluator_new_combat" (property_evaluator)
+function evaluator_new_combat:__init(npc,name,storage) super (nil, name)
+	self.st = storage
+	self.st.stage = 0
+end
+
+function evaluator_new_combat:evaluate()
+	--alun_utils.debug_write("eva_new_combat")
+	local npc = self.object
+	if good_acts[alun_utils.get_current_action_id(npc)] then
+		return false
+	end
+	
+	if (db.storage[npc:id()].active_scheme == "camper") then 
+		return false 
+	end
+	
+	local override = check_overrides(npc)
+	if (not override and get_object_story_id(npc:id())) then 
+		return false 
+	end
+	
+	if (npc:has_info("npcx_beh_ignore_combat")) then 
+		return false 
+	end
+	
+	self.st.rank = IGNORE_RANK and "master" or not self.st.rank and ranks.get_obj_rank_name(npc) or self.st.rank
+	
+	if (best_heli(npc)) then
+		if (xr_conditions.surge_started()) then 
+			return false 
+		end
+
+		override = true
+	elseif (db.storage[npc:id()].panicked_to_actor) then 
+		override = true
+	elseif not (npc:best_enemy()) then 
+		return false	
+	end 
+
+	local best_weapon = npc:best_weapon()
+	local clsid = best_weapon and best_weapon:clsid()
+	if (best_weapon) and (override or GLOBAL_OVERRIDE or not (alun_utils.isRifle(nil,clsid) or alun_utils.isPistol(nil,clsid))) then
+		if (find_valid_target(npc,self.st) == true) then
+			--alun_utils.debug_write("after find valid target 1")
+			self.st.bw = best_weapon
+			--printf("has target %s",self.st.target_id and db.storage[self.st.target_id] and db.storage[self.st.target_id].object and db.storage[self.st.target_id].object:name())
+			return true		
+		end
+		--alun_utils.debug_write("after find valid target 2")
+	end
+
+	return false
+end
+
+--------------------------------------------------------------------------------------
+--												UTILITY
+--------------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------------
+--												ACTION RUSH ATTACK
+--------------------------------------------------------------------------------------
+
+class "action_new_combat" (action_base)
+function action_new_combat:__init (npc,name,storage) super (nil,name)
+	self.st = storage
+	self.st.__node_stage = 1
+end
+function action_new_combat:initialize()
+	action_base.initialize(self)
+	local npc = self.object
+	local sm = db.storage[npc:id()].state_mgr
+	if (sm and sm.target_state ~= "assault") then
+		npc:clear_animations()
+		sm:set_state("assault",nil,nil,nil, {fast_set = true})
+		sm.animation:set_state(nil, true)
+		sm.animation:set_control()
+	end	
+	npc:set_desired_position()
+	npc:set_desired_direction()
+end
+
+function action_new_combat:npc_see(enemy)
+	if (IsHelicopter(enemy,self.st.cls)) then 
+		if (enemy:get_helicopter():isVisible(self.object)) then 
+			self.st.vis = not self.st.vis and 0 or self.st.vis + 1
+			if (self.st.vis >= 10) then
+				self.st.vis = 10
+				return true 
+			end
+		else 
+			self.st.vis = not self.st.vis and 0 or self.st.vis - 1 
+			if (self.st.vis <= 0) then 
+				self.st.vis = 0 
+			end
+		end
+	else 
+		return self.object:see(enemy) or time_global()-self.object:memory_time(enemy) <= 2000
+		--return time_global()-self.object:memory_time(enemy) <= 2000
+	end
+	
+	return false
+end 
+
+function action_new_combat:set_fire_type(enemy,dist)
+	--alun_utils.debug_write("action_new_combat:set_fire_type")
+	local can_set = true
+	local tg = time_global()
+	
+	self.st.__keep_fire_type_until = not self.st.__keep_fire_type_until and tg+3000 or self.st.__keep_fire_type_until
+	if (self.st.__keep_fire_type_until and tg < self.st.__keep_fire_type_until) then
+		can_set = false
+	end
+	self.st.__keep_fire_type_until = nil
+	
+	-- TODO: Maybe read fire queue params from system_ini()
+	
+	local aim = dist*1.5
+	
+	local bw = self:find_suitable_weapon(self.object,enemy)
+	if (alun_utils.isShotgun(bw)) then 
+		self.st.__fire_type = (self.st.__fire_type == nil or can_set) and math_random(1,2) or self.st.__fire_type
+		self.st.__fire_range = 1600
+		self.st.__fire_queue = (aim <= 500 and 500 or aim >= 7500 and 7500 or aim) + math_random(100,800)
+	elseif (alun_utils.isSniper(bw)) then 
+		self.st.__fire_type = 1
+		self.st.__fire_range = 250000
+		self.st.__fire_queue = (aim <= 2000 and 2000 or aim >= 7500 and 7500 or aim) + math_random(100,500)
+	elseif (alun_utils.isRifle(bw)) then 
+		self.st.__fire_type = (self.st.__fire_type == nil or can_set) and math_random(1,6) or self.st.__fire_type
+		self.st.__fire_range = 22500
+		self.st.__fire_queue = (aim <= 500 and 500 or aim >= 3500 and 3500 or aim) + math_random(100,500)
+	elseif (alun_utils.isPistol(bw)) then 
+		self.st.__fire_type = (self.st.__fire_type == nil or can_set) and math_random(1,3) or self.st.__fire_type
+		self.st.__fire_range = 3600
+		self.st.__fire_queue = (aim <= 500 and 500 or aim >= 7500 and 7500 or aim) + math_random(100,500)
+	else
+		self.st.__fire_range = 22500
+		self.st.__fire_type = 1
+		self.st.__fire_queue = (aim <= 2000 and 2000 or aim >= 7500 and 7500 or aim) + math_random(100,500)
+	end
+end
+
+function action_new_combat:set_item(npc,enemy,ene_pos,see,dist)
+	self.is_firing = false 
+	
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:set_item"))
+	local is_heli = IsHelicopter(enemy,self.st.cls)
+	local bw = self:find_suitable_weapon(npc,enemy)
+	if not (bw) then 
+		return 
+	end 
+	local tg = time_global()
+	local npc_see = self:npc_see(enemy)
+	local vec
+
+	self:set_fire_type(enemy,dist)
+	
+	local sight_type = npc:sight_params()
+	sight_type = sight_type and sight_type.m_sight_type or 0
+	
+	if (is_heli) then
+		if (npc_see) then
+			--local vel = enemy:get_helicopter():GetCurrVelocity()
+			--vec = enemy:position()
+			--npc:set_sight(look.fire_point,vector():set(vec.x+vel,vec.y+vel+1,vec.z+vel))
+			--npc:set_sight(look.fire_point,enemy:get_helicopter():GetCurrVelocityVec())
+			self:set_movement_type(npc,move.stand)
+			npc:set_sight(look.fire_point,ene_pos)
+			self.st.__keep_point_until = time_global() + 2000
+		elseif (not npc_see and not see) then
+			npc:set_sight(look.direction,npc:direction())
+		else	
+			vec = ene_pos
+			npc:set_sight(look.fire_point,vec)
+		end
+	else
+		if (npc_see) then 
+			vec = alun_utils.safe_bone_pos(enemy,"bip01_spine")
+			npc:set_sight(look.fire_point,vec)
+		elseif (not npc_see and not see) then
+			npc:set_sight(look.direction,npc:direction())
+		else	
+			vec = ene_pos
+			npc:set_sight(look.fire_point,vec)
+		end
+	end
+	
+	--alun_utils.debug_nearest(npc,"sight_type=%s",sight_type)
+	if (sight_type == 3 or sight_type == 4) or (alun_utils.isShotgun(bw)) then
+		if (npc_see) then
+			if (is_heli) then 
+				self:set_movement_type(npc,move.stand)
+			end
+			if (npc:active_item()) then
+				npc:set_item(object.fire1,bw,self.st.__fire_type or 1,self.st.__fire_queue or 1500)
+				self.is_firing = true
+			end
+		else
+			npc:set_item(object.aim1,bw)
+		end
+	else
+		npc:set_item(object.aim1,bw)
+	end
+end
+
+function action_new_combat:try_go_cover_reload(npc,enemy,ene_pos)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_go_cover_reload"))
+	local bw = self:find_suitable_weapon(npc,enemy)
+	
+	if (bw:section() == "knife") then 
+		return 
+	end
+	
+	-- Try to move to close cover to reload
+	if (bw:get_ammo_in_magazine() == 0) then
+		local vid = alun_utils.find_close_cover(npc,npc:position(),ene_pos,8,db.used_level_vertex_ids)
+		if (validate(npc,vid)) then
+			self.st.__keep_point_until = time_global() + 8000
+			return lmove(npc,vid,self.st)
+		end
+	end
+end
+
+function action_new_combat:try_go_cover(npc,enemy,ene_pos,dist)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_go_cover"))
+	if (not IsHelicopter(enemy)) and (npc:see(enemy) or time_global() - npc:memory_time(enemy) <= 5000) then 
+		return 
+	end 
+	
+	local vid = alun_utils.find_close_cover(npc,npc:position(),ene_pos,8,db.used_level_vertex_ids)
+	if (validate(npc,vid) and level.vertex_position(vid):distance_to_sqr(npc:position()) < dist) then
+		self.st.__keep_point_until = time_global() + 4000
+		return lmove(npc,vid,self.st)
+	end
+end
+
+function action_new_combat:try_to_facer(npc,enemy,ene_pos,dist)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_to_facer"))
+	--alun_utils.debug_nearest(npc,"try_to_facer")
+	-- Check if NPC can use facer on target; Use method only on stalker since mutants move too fast
+	
+	local bw = self:find_suitable_weapon(npc,enemy)
+	if (bw:section() == "knife") then 
+		if (dist <= 3) then
+			-- close enough already
+			return lmove_ns(npc,npc:level_vertex_id(),self.st)
+		elseif (dist <= 40) then
+			local vid = level.vertex_id(ene_pos)
+			vid = vid and vid < 4294967295 and npc:accessible(vid) and vid
+			if (vid and vid ~= npc:level_vertex_id()) then
+				return lmove_ns(npc,vid,self.st)
+			end
+		end
+	end 
+	
+	if (IsStalker(enemy,self.st.cls)) then
+		local f = db.storage[npc:id()] and db.storage[npc:id()].facer
+		if (xrs_facer) and (not (f and f.abtime and f.abtime > time_global())) then 
+			if (dist <= 30) then
+				local vid = level.vertex_id(ene_pos)
+				vid = vid and vid < 4294967295 and npc:accessible(vid) and vid
+				if (vid and vid ~= npc:level_vertex_id()) then
+					return lmove_ns(npc,vid,self.st)
+				end
+			end
+		end
+	end
+end
+
+function action_new_combat:try_to_strafe(npc,enemy,ene_pos,dist)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_to_strafe"))
+	--alun_utils.debug_nearest(npc,"try_to_strafe")
+	local dir = {}
+	dir[1] = vector_rotate_y(utils.vector_copy_by_val(npc:direction()),-90)
+	dir[2] = vector_rotate_y(utils.vector_copy_by_val(npc:direction()),90)
+	local vid
+	local radius = 5
+	local base_point = npc:level_vertex_id()
+	
+	for i=1,2 do
+		while (radius <= 15) do
+			vid = level.vertex_in_direction(base_point,dir[i],radius)
+			if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then 
+				return lmove_ns(npc,vid,self.st)
+			end
+			radius = radius + 1
+		end
+	end
+end
+
+function action_new_combat:try_to_strafe_behind_enemy(npc,enemy,ene_pos,dist)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_to_strafe_behind_enemy"))
+	--alun_utils.debug_nearest(npc,"try_to_strafe_behind_enemy")
+	local dir = vector_rotate_y(utils.vector_copy_by_val(enemy:direction()),180)
+	local vid
+	local radius = 8
+	local base_point = npc:level_vertex_id()
+	while (radius > 0) do
+		vid = level.vertex_in_direction(base_point,dir,radius)
+		if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then 
+			return lmove_ns(npc,vid,self.st)
+		end
+		radius = radius - 1
+	end
+end
+
+function action_new_combat:try_go_enemy_position(npc,enemy,ene_pos)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_go_enemy_position"))
+	--alun_utils.debug_nearest(npc,"try_go_enemy_position")
+	local vid = level.vertex_id(ene_pos)
+	if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then
+		return lmove_ns(npc,vid,self.st)
+	end
+end
+
+function action_new_combat:try_go_backward(npc)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_go_backward"))
+	--alun_utils.debug_nearest(npc,"try_go_backward")
+	local dir = vector_rotate_y(utils.vector_copy_by_val(npc:direction()),math_random(160,200))
+	local vid
+	local radius = 8
+	local base_point = npc:level_vertex_id()
+	while (radius > 0) do
+		vid = level.vertex_in_direction(base_point,dir,radius)
+		if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then
+			self.st.__keep_point_until = time_global() + 3000
+			return lmove_ns(npc,vid,self.st)
+		end
+		radius = radius - 1
+	end
+end
+
+function action_new_combat:try_go_cover_forward(npc,ene_pos)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_go_cover_forward"))
+	--alun_utils.debug_nearest(npc,"try_go_cover_forward")
+	local dir = vector_rotate_y(utils.vector_copy_by_val(npc:direction()),math_random(-25,25))
+	local vid
+	local radius = 8
+	local base_point = npc:level_vertex_id()
+	while (radius > 0) do
+		vid = level.vertex_in_direction(base_point,dir,radius)
+		if (vid and vid < 4294967295 and npc:accessible(vid) and vid ~= npc:level_vertex_id()) then 
+			--return lmove(npc,vid,self.st)
+			break
+		end
+		radius = radius - 1
+	end
+	
+	if not (vid) then 
+		return 
+	end 
+	
+	local base_position = level.vertex_position(vid)
+	local cover
+	local cover_dist = 30
+	while not cover and cover_dist > 0 do
+		cover = npc:best_cover(base_position,ene_pos,cover_dist,1,150)
+		if (cover and db.used_level_vertex_ids[cover:level_vertex_id()]) then 
+			cover = nil 
+		end
+		cover_dist = cover_dist - 1
+	end
+	
+	vid = cover and cover:level_vertex_id() or vid
+
+	if (validate(npc,vid)) then 
+		self.st.__keep_point_until = time_global() + 3000
+		return lmove(npc,vid,self.st)
+	end 
+end
+
+function action_new_combat:try_go_cover_backward(npc,ene_pos)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_go_cover_backward"))
+	--alun_utils.debug_nearest(npc,"try_go_cover_backward")
+	local dir = vector_rotate_y(utils.vector_copy_by_val(npc:direction()),math_random(160,200))
+	local vid
+	local radius = 20
+	local base_point = npc:level_vertex_id()
+	while (radius > 0) do
+		vid = level.vertex_in_direction(base_point,dir,radius)
+		if (validate(npc,vid)) then 
+			--return lmove(npc,vid,self.st)
+			break
+		end
+		radius = radius - 1
+	end
+	
+	if not (vid) then 
+		return 
+	end 
+	
+	local base_position = level.vertex_position(vid)
+	local cover
+	local cover_dist = 30
+	while not cover and cover_dist > 0 do
+		cover = npc:best_cover(base_position,ene_pos,cover_dist,1,150)
+		if (cover and db.used_level_vertex_ids[cover:level_vertex_id()]) then 
+			cover = nil 
+		end
+		cover_dist = cover_dist - 1
+	end
+	
+	vid = cover and cover:level_vertex_id() or vid
+
+	if (validate(npc,vid)) then 
+		self.st.__keep_point_until = time_global() + 3000
+		return lmove(npc,vid,self.st)
+	end 
+end
+
+function action_new_combat:set_body_state(npc,bod)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:set_body_state"))
+	local tg = time_global()
+	self.st.__keep_body_state_until = not self.st.__keep_body_state_until and tg+2000 or self.st.__keep_body_state_until
+	if (self.st.__keep_body_state_until and tg < self.st.__keep_body_state_until) then 
+		return 
+	end
+	self.st.__keep_body_state_until = nil
+	npc:set_body_state(bod)
+end
+
+function action_new_combat:set_movement_type(npc,mov)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:set_movement_type"))
+	
+	local tg = time_global()
+	self.st.__keep_movement_type_until = not self.st.__keep_movement_type_until and tg+2000 or self.st.__keep_movement_type_until
+	if (self.st.__keep_movement_type_until and tg < self.st.__keep_movement_type_until) then
+		return 
+	end
+	self.st.__keep_movement_type_until = nil
+	npc:set_movement_type(mov)
+end
+
+function action_new_combat:try_to_panic(npc,enemy,ene_pos,dist)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:try_to_panic"))
+	local cls = enemy:clsid()
+	
+	if (cls == clsid.script_actor and db.storage[npc:id()].panicked_to_actor) then 
+		if not (self.st.__panic_sound) then 
+			self.st.__panic_sound = true
+			xr_sound.set_sound_play(npc:id(),"panic_human")
+		end 		
+		return self:try_go_cover_backward(npc,ene_pos) or self:try_to_strafe(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or self:try_to_strafe_behind_enemy(npc,enemy,ene_pos,dist)
+	end
+	
+	local cause_panic_clsids
+	if (self.st.rank == "novice") then
+		cause_panic_clsids = {
+			[clsid.bloodsucker_s] 			= true,
+			[clsid.pseudodog_s] 			= true,
+			[clsid.burer_s] 				= true,
+			[clsid.chimera_s] 				= true,
+			[clsid.controller_s] 			= true,
+			[clsid.fracture_s] 				= true,
+			[clsid.poltergeist_s] 			= true,
+			[clsid.gigant_s] 				= true,
+			[clsid.snork_s] 				= true,
+			[clsid.psy_dog_s] 				= true,
+			[clsid.psy_dog_phantom_s] 		= true
+		}
+	elseif (self.st.rank == "experienced") then 
+		cause_panic_clsids = {
+			[clsid.bloodsucker_s] 			= true,
+			[clsid.burer_s] 				= true,
+			[clsid.chimera_s] 				= true,
+			[clsid.controller_s] 			= true,
+			[clsid.poltergeist_s] 			= true,
+			[clsid.gigant_s] 				= true,
+		}
+	else 
+		return
+	end
+		
+	if (cause_panic_clsids[cls] == true) then 
+		if not (self.st.__panic_sound) then 
+			self.st.__panic_sound = true
+			xr_sound.set_sound_play(npc:id(),"panic_monster")
+		end 
+		
+		return self:try_go_cover_backward(npc,ene_pos) or self:try_to_strafe(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or self:try_to_strafe_behind_enemy(npc,enemy,ene_pos,dist)
+	end
+end 
+
+function action_new_combat:find_suitable_weapon(npc,enemy)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:find_suitable_weapon"))
+	local bw = self.st.bw or npc:best_weapon()
+	if not (bw) then
+		return npc:object("knife")
+	end
+	
+	if (IsHelicopter(enemy)) then
+		if not (alun_utils.isLauncher(bw)) then
+			local rpg = npc:object("wpn_rpg7")
+			if (rpg and rpg:get_ammo_in_magazine() > 0) then 
+				self.st.bw = rpg
+				return rpg
+			end
+		end 
+	else 
+		if (bw:section() == "wpn_rpg7") then
+			local function itr(npc,itm)
+				if (alun_utils.item_is_fa(itm) and itm:section() ~= "wpn_rpg7") then
+					self.st.bw = itm
+					return
+				end 
+			end
+			npc:iterate_inventory(itr,npc)
+		end
+	end
+	return self.st.bw or npc:best_weapon()
+end 
+
+function action_new_combat:low_level_ai_execute(npc,enemy,ene_pos,see,dist)
+
+	local tg = time_global()
+	if (self.st.vid) then
+		if (self.st.__keep_point_until and tg < self.st.__keep_point_until) then 
+			lmove(npc,self.st.vid,self.st)
+			return
+		end
+		db.used_level_vertex_ids[self.st.vid] = nil
+	end 
+	
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:low_level_ai_execute"))
+	local new_vid = self:try_to_panic(npc,enemy,ene_pos,dist)
+	if (new_vid) then
+		db.storage[npc:id()].panicked = true
+		state_mgr.set_state(npc,"assault")
+		return
+	else
+		db.storage[npc:id()].panicked = nil
+	end 
+	
+	npc:set_mental_state(anim.danger)
+	npc:set_movement_type(move.walk)
+
+	new_vid = self:try_go_cover_reload(npc,enemy,ene_pos)
+	if (new_vid == nil) then
+		if (dist <= 400) then 
+			self:set_body_state(npc,move.standing)
+			self:set_movement_type(npc,move.run)
+			return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+		elseif (dist <= 900) then 
+			self:set_body_state(npc,move.standing)
+			self:set_movement_type(npc,move.walk)
+			self.st.vid = self:try_to_strafe(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist)
+			return
+		else
+			self:set_body_state(npc,move.crouch)
+			self:set_movement_type(npc,move.walk)
+			return self:try_go_cover_forward(npc,ene_pos) or self:try_go_enemy_position(npc,enemy,ene_pos) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+		end
+	end
+end 
+
+function action_new_combat:heli_combat_execute(npc,enemy,ene_pos,see,dist)
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:heli_combat_execute"))
+	local bw = self:find_suitable_weapon(npc,enemy)
+	local can_fight = db.storage[npc:id()].heli_enemy_flag == true and (alun_utils.isLauncher(bw) or alun_utils.isRifle(bw)) or false
+	
+	if (character_community(npc) ~= "monolith" and can_fight ~= true) then 
+		new_vid = self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+		if (new_vid == npc:level_vertex_id()) then
+			if (state_mgr.get_state(npc) ~= "hide_no_wpn") then 
+				local dir = utils.vector_copy_by_val(npc:direction())
+				local vec = vector_rotate_y(dir,-180)
+				state_mgr.set_state(npc,"hide_no_wpn",nil,nil, {look_position = npc:position():add(vec) },{fast_set=true})
+			end
+		else
+			state_mgr.set_state(npc,"sneak_run_no_wpn",nil,nil,nil,{fast_set = true})
+		end
+		return
+	end
+
+	npc:set_mental_state(anim.danger)
+	npc:set_movement_type(move.run)
+	self:set_item(npc,enemy,ene_pos,see,dist)
+
+	-- Keep current target vertex id for short duration
+	local tg = time_global()
+	if (self.st.vid) then
+		if (self.st.__keep_point_until and tg < self.st.__keep_point_until) then 
+			lmove(npc,self.st.vid,self.st)
+			return
+		end
+		db.used_level_vertex_ids[self.st.vid] = nil
+	end
+	
+	if (self.is_firing) then 
+		self:set_body_state(npc,move.standing)
+		self:set_movement_type(npc,move.walk)
+		lmove_ns(npc,npc:level_vertex_id(),self.st)
+		return
+	end
+	
+	new_vid = self:try_go_cover_reload(npc,enemy,ene_pos)
+	if (new_vid == nil) then
+		if (dist <= 64) then
+			self:set_body_state(npc,move.standing)
+			self:set_movement_type(npc,move.walk)
+			if (IsStalker) then
+				if not (see) then 
+					return self:try_to_strafe_behind_enemy(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				else
+					return self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				end
+			else
+				local ef_creature_type = alun_utils.read_from_ini(nil,enemy:section(),"ef_creature_type","float",0)
+				if (ef_creature_type >= 18) then 
+					self:set_body_state(npc,move.standing)
+					self:set_movement_type(npc,move.run)
+					return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+				end 
+				return self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+			end
+		elseif (dist <= 400) then
+			if (see) then
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.walk)
+			else 
+				self:set_body_state(npc,move.crouch)
+				self:set_movement_type(npc,move.run)
+			end
+			if (IsStalker) then 
+				return self:try_to_strafe(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+			else
+				local ef_creature_type = alun_utils.read_from_ini(nil,enemy:section(),"ef_creature_type","float",0)
+				if (ef_creature_type >= 18) then 
+					self:set_body_state(npc,move.standing)
+					self:set_movement_type(npc,move.run)
+					return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+				end 
+				return self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+			end
+		elseif (dist <= 2500) then 
+			self:set_body_state(npc,move.standing)
+			self:set_movement_type(npc,move.walk)
+			return self:try_go_cover_forward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist) or self:try_go_enemy_position(npc,enemy,ene_pos) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+		else
+			self:set_body_state(npc,move.standing)
+			self:set_movement_type(npc,move.run)
+			return self:try_go_enemy_position(npc,enemy,ene_pos) or self:try_go_cover_forward(npc,ene_pos)
+		end
+		return
+	end
+	
+	self:set_movement_type(npc,move.walk)
+	return self:try_go_cover(npc,enemy,ene_pos,dist)
+end
+
+function action_new_combat:high_level_ai_execute(npc,enemy,ene_pos,see,dist)
+
+	-- Keep current target vertex id for short duration
+	local tg = time_global()
+	if (self.st.vid) then
+		if (self.st.__keep_point_until and tg < self.st.__keep_point_until) then
+			lmove(npc,self.st.vid,self.st)
+			return
+		end
+		db.used_level_vertex_ids[self.st.vid] = nil
+	end
+	
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:high_level_ai_execute"))
+	local new_vid = self:try_to_panic(npc,enemy,ene_pos,dist)
+	if (new_vid) then
+		db.storage[npc:id()].panicked = true
+		self:set_body_state(npc,move.standing)
+		self:set_movement_type(npc,move.run)
+		state_mgr.set_state(npc,"assault")
+		return
+	else
+		db.storage[npc:id()].panicked = nil
+	end 
+	
+	npc:set_mental_state(anim.danger)
+	npc:set_movement_type(move.walk)
+	
+	new_vid = self:try_to_facer(npc,enemy,ene_pos,dist)
+	new_vid = new_vid or self:try_go_cover_reload(npc,enemy,ene_pos)
+	
+	if (new_vid == nil) then
+		local bw = self:find_suitable_weapon(npc,enemy)
+		if (alun_utils.isSniper(bw) or alun_utils.isLauncher(bw)) then 
+				
+			if (self.is_firing) then 
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.walk)
+				lmove_ns(npc,npc:level_vertex_id(),self.st)
+				return
+			end
+			
+			if (dist <= 2500) then 
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.run)
+				return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+			elseif (dist <= 6400) then
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.walk)
+				local npc_see = npc:see(enemy)
+				return (npc_see and self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover_forward(npc,ene_pos)) or self:try_go_cover(npc,enemy,ene_pos,dist)
+			else
+				self:set_body_state(npc,move.crouch)
+				self:set_movement_type(npc,move.walk)
+				return self:try_go_cover_forward(npc,ene_pos) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+			end
+		elseif (alun_utils.isRifle(bw)) then
+			if (dist <= 64) then
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.walk)
+				if (IsStalker) then
+					if not (see) then 
+						return self:try_to_strafe_behind_enemy(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+					else
+						return self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+					end
+				else
+					local ef_creature_type = alun_utils.read_from_ini(nil,enemy:section(),"ef_creature_type","float",0)
+					if (ef_creature_type >= 18) then 
+						self:set_body_state(npc,move.standing)
+						self:set_movement_type(npc,move.run)
+						return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+					end 
+					return self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				end
+				return
+			elseif (dist <= 400) then
+				if (see) then
+					self:set_body_state(npc,move.standing)
+					self:set_movement_type(npc,move.walk)
+				else 
+					self:set_body_state(npc,move.crouch)
+					self:set_movement_type(npc,move.run)
+				end
+				if (IsStalker) then 
+					return self:try_to_strafe(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				else
+					local ef_creature_type = alun_utils.read_from_ini(nil,enemy:section(),"ef_creature_type","float",0)
+					if (ef_creature_type >= 18) then 
+						self:set_body_state(npc,move.standing)
+						self:set_movement_type(npc,move.run)
+						return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+					end 
+					return self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				end
+			elseif (dist <= 2500) then 
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.walk)
+				return self:try_go_cover(npc,enemy,ene_pos,dist) or self:try_go_enemy_position(npc,enemy,ene_pos) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+			else
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.run)
+				return self:try_go_enemy_position(npc,enemy,ene_pos) or self:try_go_cover_forward(npc,ene_pos)
+			end
+			return
+		elseif (alun_utils.isShotgun(bw)) then
+			--alun_utils.debug_nearest(npc,"isShotgun DIST=%s enemy=%s is_stalker=%s",dist,enemy and enemy:name(),IsStalker(enemy))
+			if (IsStalker(enemy)) then
+				if (dist <= 3) then
+					self:set_body_state(npc,move.crouch)
+					self:set_movement_type(npc,move.walk)
+					self.st.__keep_point_until = time_global() + 5000
+					return self:try_to_strafe(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				elseif (dist <= 49) then
+					if (see) then
+						self:set_body_state(npc,move.standing)
+						self:set_movement_type(npc,move.walk)
+					else 
+						self:set_body_state(npc,move.crouch)
+						self:set_movement_type(npc,move.run)
+					end
+					return self:try_to_strafe_behind_enemy(npc,enemy,ene_pos,dist) or self:try_go_cover(npc,enemy,ene_pos,dist) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				end
+			else 
+				local ef_creature_type = alun_utils.read_from_ini(nil,enemy:section(),"ef_creature_type","float",0)
+				if (ef_creature_type >= 18) then 
+					if (dist <= 400) then 
+						self:set_body_state(npc,move.standing)
+						self:set_movement_type(npc,move.run)
+						return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+					elseif (dist <= 900) then
+						self:set_body_state(npc,move.standing)
+						self:set_movement_type(npc,move.walk)
+						return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+					end
+					self:set_movement_type(npc,move.walk)
+					self:set_body_state(npc,move.standing)
+					return self:try_go_enemy_position(npc,enemy,ene_pos)		
+				end 
+				if (dist <= 3) then
+					self:set_body_state(npc,move.standing)
+					self:set_movement_type(npc,move.walk)
+					return random_choice(self:try_go_backward(npc),self:try_to_strafe(npc,enemy,ene_pos,dist)) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				elseif (dist <= 49) then 
+					self:set_body_state(npc,move.crouch)
+					self:set_movement_type(npc,move.walk)
+					self.st.__keep_point_until = time_global() + 3000
+					return lmove_ns(npc,npc:level_vertex_id(),self.st)
+				elseif (dist <= 400) then 
+					self:set_movement_type(npc,move.walk)
+					self:set_body_state(npc,move.standing)
+					return random_choice(self:try_go_enemy_position(npc,enemy,ene_pos),self:try_go_cover_forward(npc,ene_pos)) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+				end
+			end
+			self:set_body_state(npc,move.standing)
+			self:set_movement_type(npc,move.run)
+			return self:try_go_enemy_position(npc,enemy,ene_pos) or self:try_go_cover_forward(npc,ene_pos)
+		else
+			if (dist <= 400) then 
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.run)
+				return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+			elseif (dist <= 900) then 
+				self:set_body_state(npc,move.standing)
+				self:set_movement_type(npc,move.walk)
+				return self:try_go_cover_backward(npc,ene_pos) or self:try_go_cover(npc,enemy,ene_pos,dist)
+			else
+				self:set_body_state(npc,move.crouch)
+				self:set_movement_type(npc,move.walk)
+				return random_choice(self:try_go_cover(npc,enemy,ene_pos,dist),self:try_go_enemy_position(npc,enemy,ene_pos)) or lmove_ns(npc,npc:level_vertex_id(),self.st)
+			end
+		end
+	end
+		
+	self:set_movement_type(npc,move.walk)
+	return self:try_go_cover(npc,enemy,ene_pos,dist)
+end 
+
+function action_new_combat:execute()
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:execute start"))
+	action_base.execute(self)
+	
+	local npc = self.object
+	local enemy = self.st.target_id and (db.storage[self.st.target_id] and db.storage[self.st.target_id].object or level.object_by_id(self.st.target_id))
+	
+	--printf("rush attack")
+	
+	if not (enemy and enemy:alive()) then
+		self.st.target_id = nil
+		--alun_utils.debug_write(alun_utils.sr("action_new_combat:execute end"))
+		return
+	end
+	
+	self.st.cls = enemy:clsid()
+	
+	if (self.st.last_id == nil or self.st.last_id ~= self.st.target_id) then 
+		local sm = db.storage[npc:id()].state_mgr
+		if (sm and sm.target_state ~= "assault") then
+			npc:clear_animations()
+			sm:set_state("assault",nil,nil,nil, {fast_set = true})
+			sm.animation:set_state(nil, true)
+			sm.animation:set_control()
+		end
+		self.st.last_id = self.st.target_id
+	end 
+	
+	-- ensure and enforce path type
+	if (npc:path_type() ~= game_object.level_path) then 
+		npc:set_path_type(game_object.level_path)
+	end
+	
+	local is_heli = IsHelicopter(enemy,self.st.cls)
+	local tg = time_global()
+	local ene_pos = is_heli and enemy:position() or npc:memory_position(enemy) or enemy:position()
+	local dist = is_heli and heli_alife.distance_2d_sqr(npc:position(),enemy:position()) or ene_pos:distance_to_sqr(npc:position())
+	local mem_time = is_heli and tg or enemy:id() ~= 0 and enemy:memory_time(npc)
+	local see = is_heli and enemy:get_helicopter():isVisible(npc) or enemy:see(npc) or mem_time and tg - mem_time <= 7000
+
+	if (is_heli) then 
+		self:heli_combat_execute(npc,enemy,ene_pos,see,dist)
+	elseif (self.st.rank == "novice") then 
+		self:low_level_ai_execute(npc,enemy,ene_pos,see,dist)
+		if not (db.storage[npc:id()].panicked) then
+			self:set_item(npc,enemy,ene_pos,see,dist)
+		end
+	else
+		self:high_level_ai_execute(npc,enemy,ene_pos,see,dist)
+		if not (db.storage[npc:id()].panicked) then
+			self:set_item(npc,enemy,ene_pos,see,dist)
+		end
+	end
+	
+	--alun_utils.debug_write(alun_utils.sr("action_new_combat:execute end"))
+end
+
+function action_new_combat:hit_callback(obj, amount, local_direction, who, bone_index)
+	if (amount > 0 and who and obj:relation(who) >= game_object.enemy) then 
+		self.st.__keep_target_until = tg + 7000
+		self.st.target_id = who:id()	
+	end
+end
+
+function action_new_combat:finalize()
+    action_base.finalize(self)
+	if (self.st.vid) then 
+		db.used_level_vertex_ids[self.st.vid] = nil
+	end
+	self.st.ready_to_fire = nil
+	self.st.__panic_sound = nil
+	self.st.__keep_target_until = nil
+	db.storage[self.object:id()].panicked = nil
+	self.object:set_sight(look.fire_point,nil,0)
+	self.object:set_item(object.idle,self.st.bw or self.object:best_weapon())
+	self.st.bw = nil
+end
+
+--------------------------------------------------------------------
+--------------------------------- BINDER ---------------------------
+function setup_generic_scheme(npc,ini,scheme,section,stype,temp)
+	local st = xr_logic.assign_storage_and_bind(npc,ini,"new_combat",section,temp)
+end
+
+function add_to_binder(npc,ini,scheme,section,storage,temp)
+	local manager = npc:motivation_action_manager()
+	
+	if (character_community(npc) == "zombied" or npc:section() == "actor_visual_stalker") then
+		manager:add_evaluator(evaid,property_evaluator_const(false))
+		temp.needs_configured = false
+		return 
+	end
+
+	manager:add_evaluator(evaid,evaluator_new_combat(npc,"eva_new_combat",storage))
+	
+	temp.action = action_new_combat(npc,"act_new_combat",storage)
+	
+	temp.action:add_precondition(world_property(stalker_ids.property_alive,true))
+	temp.action:add_precondition(world_property(stalker_ids.property_danger, false))
+	temp.action:add_precondition(world_property(evaid,true))
+	
+	temp.action:add_effect(world_property(evaid,false))
+	
+	manager:add_action(actid,temp.action)
+	
+	xr_logic.subscribe_action_for_events(npc, storage, temp.action)
+end
+
+function configure_actions(npc,ini,scheme,section,stype,temp)
+	temp.action:add_precondition(world_property(xr_evaluators_id.sidor_wounded_base,false))
+	temp.action:add_precondition(world_property(xr_evaluators_id.wounded_exist,false))
+
+	if (rx_ff) then 
+		temp.action:add_precondition(world_property(rx_ff.evid_dont_shoot,false))
+	end
+	if (rx_gl) then
+		temp.action:add_precondition(world_property(rx_gl.evid_gl_reload,false))
+	end
+	if (xrs_facer) then
+		temp.action:add_precondition(world_property(xrs_facer.evid_facer,false))
+	end
+
+	local manager = npc:motivation_action_manager()
+	local action
+	local p = {stalker_ids.action_combat_planner,xr_actions_id.state_mgr + 2,xr_actions_id.alife}
+	
+	for i=1,#p do
+		action = manager:action(p[i])
+		if (action) then
+			action:add_precondition(world_property(evaid,false))
+		else
+			printf("axr_new_combat: no action id p[%s]",i)
+		end
+	end
+end 
+
+function disable_generic_scheme(npc,scheme,stype)
+	local st = db.storage[npc:id()][scheme]
+	if st then
+		st.enabled = false
+	end
+end
+
+function npc_add_precondition(action)
+	action:add_precondition(world_property(evaid,false))
+end
