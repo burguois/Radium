@@ -1,0 +1,12 @@
+[zat_b7_bandit_boss_sultan_task_1]
+icon = ui_inGame2_Odin_vistrel
+prior = 2
+storyline = false 
+title = zat_b7_bandit_boss_sultan_task_1_name
+descr = zat_b7_bandit_boss_sultan_task_1_text
+job_descr = zat_b7_bandit_boss_sultan_task_1_about
+repeat_timeout = 3600
+target_functor = zat_b7_bandit_boss_sultan_task_target
+on_init = %=on_init_bounty_hunt(zat_b7_bandit_boss_sultan_bounty_target_id:stalker:killer) -zat_b7_bandit_boss_sultan_task_1_complete%
+on_complete = %+zat_b7_bandit_boss_sultan_task_1_complete%
+condlist_0 = {!bounty_by_id_exists(zat_b7_bandit_boss_sultan_bounty_target_id)} fail

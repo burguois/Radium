@@ -1,0 +1,6 @@
+bread = 1, prob=0.4 \n
+kolbasa = 1, prob=0.4 \n
+conserva = 1, prob=0.4 \n
+beer = 1, prob=0.04 \n
+mineral_water = 1, prob=0.1 \n
+chocolate = 1, prob=0.1 \n
